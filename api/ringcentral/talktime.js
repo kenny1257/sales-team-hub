@@ -1,4 +1,4 @@
-  const { rcGet, rcPost } = require('../../lib/ringcentral');
+const { rcGet, rcPost } = require('../../lib/ringcentral');
   const { getUserId } = require('../../lib/auth');
 
   module.exports = async function handler(req, res) {
@@ -89,6 +89,21 @@
                   if (Array.isArray(analyticsData[topKeys[ti]])) {
                       records = analyticsData[topKeys[ti]];
                       break;
+                  }
+              }
+              if (!records) {
+                  for (var ti2 = 0; ti2 < topKeys.length; ti2++) {
+                      var nested = analyticsData[topKeys[ti2]];
+                      if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+                          var nestedKeys = Object.keys(nested);
+                          for (var ni = 0; ni < nestedKeys.length; ni++) {
+                              if (Array.isArray(nested[nestedKeys[ni]])) {
+                                  records = nested[nestedKeys[ni]];
+                                  break;
+                              }
+                          }
+                          if (records) break;
+                      }
                   }
               }
           }
