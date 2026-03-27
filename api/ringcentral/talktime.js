@@ -46,9 +46,10 @@ module.exports = async function handler(req, res) {
 
         // 2. Fetch aggregated call data from the Analytics API
         //    This gives the EXACT same numbers as the RingCentral dashboard
-        const nextDate = new Date(date + 'T00:00:00');
-        nextDate.setDate(nextDate.getDate() + 1);
-        const nextDateStr = nextDate.toISOString().split('T')[0];
+        // timeTo can't be in the future — use current time if today, end of day if past
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const timeTo = (date >= todayStr) ? now.toISOString() : `${date}T23:59:59.999Z`;
 
         const analyticsData = await rcPost('/analytics/calls/v1/accounts/~/aggregation/fetch', {
             grouping: {
@@ -58,7 +59,7 @@ module.exports = async function handler(req, res) {
                 timeZone: 'America/Chicago',
                 timeRange: {
                     timeFrom: `${date}T00:00:00.000Z`,
-                    timeTo: `${nextDateStr}T00:00:00.000Z`,
+                    timeTo: timeTo,
                 },
             },
             responseOptions: {
