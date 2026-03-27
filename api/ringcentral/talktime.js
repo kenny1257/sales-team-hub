@@ -66,7 +66,7 @@ module.exports = async function handler(req, res) {
                 },
                 timers: {
                     allCallsDuration: { aggregationType: 'Sum' },
-                    handleTime: { aggregationType: 'Sum' },
+                    callsSegmentsDuration: { aggregationType: 'Sum' },
                 },
             },
         });
@@ -89,15 +89,13 @@ module.exports = async function handler(req, res) {
             if (!extId) continue;
 
             const calls = record.counters?.allCalls?.sum || 0;
-            // Use handleTime to match RC dashboard's "Total Handle Time"
-            const handleTime = record.timers?.handleTime?.sum || 0;
+            const segmentsDuration = record.timers?.callsSegmentsDuration?.sum || 0;
             const talkDuration = record.timers?.allCallsDuration?.sum || 0;
 
             if (stats[extId]) {
                 stats[extId].calls = calls;
-                stats[extId].talkTime = handleTime || talkDuration;
+                stats[extId].talkTime = segmentsDuration || talkDuration;
             } else {
-                // Extension from analytics not in our extension list
                 stats[extId] = {
                     id: extId,
                     name: 'Extension ' + extId,
@@ -105,7 +103,7 @@ module.exports = async function handler(req, res) {
                     type: '',
                     status: '',
                     calls,
-                    talkTime: handleTime || talkDuration,
+                    talkTime: segmentsDuration || talkDuration,
                 };
                 allExtensions.push(stats[extId]);
             }
