@@ -81,12 +81,20 @@ module.exports = async function handler(req, res) {
             page++;
         }
 
-        // Aggregate by extension
+        // Initialize ALL extensions at 0 so everyone shows up
         const stats = {};
+        for (const ext of allExtensions) {
+            stats[ext.id] = {
+                ...ext,
+                calls: 0,
+                talkTime: 0,
+            };
+        }
+
+        // Aggregate call log data on top
         for (const record of allRecords) {
             let extId = null;
 
-            // Primary: use the extension field
             if (record.extension && record.extension.id) {
                 extId = String(record.extension.id);
             }
@@ -94,22 +102,16 @@ module.exports = async function handler(req, res) {
             if (!extId) continue;
 
             // If this extension isn't in our map, add it dynamically
-            if (!extensions[extId]) {
-                extensions[extId] = {
+            if (!stats[extId]) {
+                const entry = {
                     id: extId,
                     name: 'Extension ' + extId,
                     extensionNumber: '',
                 };
-                allExtensions.push(extensions[extId]);
+                stats[extId] = { ...entry, calls: 0, talkTime: 0 };
+                allExtensions.push(entry);
             }
 
-            if (!stats[extId]) {
-                stats[extId] = {
-                    ...extensions[extId],
-                    calls: 0,
-                    talkTime: 0,
-                };
-            }
             stats[extId].calls++;
             stats[extId].talkTime += record.duration || 0;
         }
