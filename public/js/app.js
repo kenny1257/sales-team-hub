@@ -607,12 +607,18 @@
 
     function buildFilterList() {
         const list = document.getElementById('talk-filter-list');
-        if (!talkData || !talkData.leaderboard.length) {
-            list.innerHTML = '<p class="text-muted" style="padding:12px;">No reps loaded yet. Load data first.</p>';
+        if (!talkData) {
+            list.innerHTML = '<p class="text-muted" style="padding:12px;">No data loaded yet. Load data first.</p>';
             return;
         }
-        // Build checkboxes from leaderboard data — checked = visible, unchecked = hidden
-        list.innerHTML = talkData.leaderboard.map(rep => {
+        // Use allExtensions (every rep in RingCentral) for the filter, not just those with calls
+        const reps = talkData.allExtensions || talkData.leaderboard || [];
+        if (reps.length === 0) {
+            list.innerHTML = '<p class="text-muted" style="padding:12px;">No reps found.</p>';
+            return;
+        }
+        // checked = visible on the board, unchecked = hidden
+        list.innerHTML = reps.map(rep => {
             const isHidden = hiddenExtIds.includes(rep.id);
             return `<label class="filter-item">
                 <input type="checkbox" value="${rep.id}" ${isHidden ? '' : 'checked'}>
