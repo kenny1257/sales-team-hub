@@ -1,4 +1,4 @@
-const { rcGet, rcPost } = require('../../lib/ringcentral');
+  const { rcGet, rcPost } = require('../../lib/ringcentral');
   const { getUserId } = require('../../lib/auth');
 
   module.exports = async function handler(req, res) {
@@ -121,30 +121,20 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
                   }
                   if (!extId) continue;
 
+                  // Call count: counters.allCalls.values
                   var calls = 0;
+                  if (rec.counters && rec.counters.allCalls) {
+                      calls = rec.counters.allCalls.values || rec.counters.allCalls.sum || rec.counters.allCalls.value || 0;
+                      if (typeof calls === 'object') calls = 0;
+                  }
+
+                  // Duration: timers.allCalls.values (total seconds)
                   var duration = 0;
-
-                  var places = [rec.counters, rec.timers, rec];
-                  for (var pi = 0; pi < places.length; pi++) {
-                      var p = places[pi];
-                      if (!p) continue;
-                      if (!calls && p.allCalls) {
-                          calls = (typeof p.allCalls === 'object') ? (p.allCalls.sum || p.allCalls.value || 0) : Number(p.allCalls) || 0;
-                      }
+                  if (rec.timers && rec.timers.allCalls) {
+                      duration = rec.timers.allCalls.values || rec.timers.allCalls.sum || rec.timers.allCalls.value || 0;
+                      if (typeof duration === 'object') duration = 0;
                   }
-
-                  var durNames = ['callsSegmentsDuration', 'allCallsDuration', 'handleTime', 'talkTime'];
-                  for (var pi2 = 0; pi2 < places.length; pi2++) {
-                      var p2 = places[pi2];
-                      if (!p2) continue;
-                      for (var di = 0; di < durNames.length; di++) {
-                          if (p2[durNames[di]]) {
-                              duration = (typeof p2[durNames[di]] === 'object') ? (p2[durNames[di]].sum || p2[durNames[di]].value || 0) : Number(p2[durNames[di]]) || 0;
-                              if (duration) break;
-                          }
-                      }
-                      if (duration) break;
-                  }
+                  duration = Math.round(duration);
 
                   var repName = (rec.info && rec.info.name) ? rec.info.name : null;
 
