@@ -1,4 +1,4 @@
- const { rcGet, rcPost } = require('../../lib/ringcentral');
+const { rcGet, rcPost } = require('../../lib/ringcentral');
   const { getUserId } = require('../../lib/auth');
 
   module.exports = async function handler(req, res) {
@@ -121,7 +121,17 @@
               if (records && Array.isArray(records)) {
                   for (var i = 0; i < records.length; i++) {
                       var record = records[i];
-                      var extId = (record.key && record.key.extensionId) ? String(record.key.extensionId) : null;
+                      var extId = null;
+                      if (record.key) {
+                          extId = record.key.extensionId || record.key.userId || record.key.id || record.key.extensionNumber || null;
+                          if (!extId && typeof record.key === 'string') extId = record.key;
+                          if (!extId && typeof record.key === 'number') extId = record.key;
+                          if (!extId && typeof record.key === 'object') {
+                              var keyFields = Object.keys(record.key);
+                              if (keyFields.length > 0) extId = record.key[keyFields[0]];
+                          }
+                      }
+                      if (extId) extId = String(extId);
                       if (!extId) continue;
 
                       var calls = (record.counters && record.counters.allCalls && record.counters.allCalls.sum) ? record.counters.allCalls.sum : 0;
@@ -182,6 +192,9 @@
               var snapshot = JSON.stringify(analyticsData).slice(0, 1000);
               response._analyticsSnapshot = snapshot;
               response._recordsFound = records ? records.length : 0;
+              if (records && records.length > 0) {
+                  response._firstRecord = JSON.stringify(records[0]).slice(0, 500);
+              }
           }
 
           res.json(response);
