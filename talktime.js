@@ -8,38 +8,59 @@ module.exports = async function handler(req, res) {
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     const date = req.query.date || new Date().toISOString().split('T')[0];
-    // Use account-local time (no Z suffix) so RingCentral uses the account's timezone
+    // No 'Z' suffix — RingCentral will use account's local timezone
     const dateFrom = `${date}T00:00:00`;
     const dateTo = `${date}T23:59:59`;
 
     try {
-        // Fetch all user extensions
-        const extData = await rcGet('/restapi/v1.0/account/~/extension', {
-            type: 'User',
-            status: 'Enabled',
-            perPage: '1000',
-        });
+        // Fetch ALL extensions — no type or status filter so we don't miss anyone
+        let allExtRecords = [];
+        let extPage = 1;
+        let extHasMore = true;
+        while (extHasMore && extPage <= 10) {
+            const extData = await rcGet('/restapi/v1.0/account/~/extension', {
+                perPage: '1000',
+                page: String(extPage),
+            });
+            allExtRecords = allExtRecords.concat(extData.records || []);
+            if (extData.paging) {
+                extHasMore = extData.paging.page < extData.paging.totalPages;
+            } else {
+                extHasMore = false;
+            }
+            extPage++;
+        }
 
+        // Build extensions map — include all types but tag them
         const extensions = {};
         const allExtensions = [];
-        for (const ext of (extData.records || [])) {
+        for (const ext of allExtRecords) {
             const id = String(ext.id);
+            // Skip non-person extensions like Department, Voicemail, etc.
+            // But keep User, DigitalUser, VirtualUser, FaxUser types
+            if (ext.type === 'Department' || ext.type === 'Announcement' ||
+                ext.type === 'SharedLinesGroup' || ext.type === 'PagingOnly' ||
+                ext.type === 'IvrMenu' || ext.type === 'ParkLocation') {
+                continue;
+            }
             const entry = {
                 id,
                 name: ext.name || ('Ext ' + ext.extensionNumber),
                 extensionNumber: ext.extensionNumber,
+                type: ext.type,
+                status: ext.status,
             };
             extensions[id] = entry;
             allExtensions.push(entry);
         }
         allExtensions.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Fetch call logs — no type filter to capture all calls
+        // Fetch account-level call logs with pagination
         let allRecords = [];
         let page = 1;
         let hasMore = true;
 
-        while (hasMore && page <= 20) {
+        while (hasMore && page <= 30) {
             const logData = await rcGet('/restapi/v1.0/account/~/call-log', {
                 dateFrom,
                 dateTo,
@@ -50,11 +71,10 @@ module.exports = async function handler(req, res) {
 
             allRecords = allRecords.concat(logData.records || []);
 
-            // Check if there's a next page
             if (logData.paging) {
                 hasMore = logData.paging.page < logData.paging.totalPages;
-            } else if (logData.navigation) {
-                hasMore = !!logData.navigation.nextPage;
+            } else if (logData.navigation && logData.navigation.nextPage) {
+                hasMore = true;
             } else {
                 hasMore = false;
             }
@@ -64,13 +84,24 @@ module.exports = async function handler(req, res) {
         // Aggregate by extension
         const stats = {};
         for (const record of allRecords) {
-            // Try multiple ways to find the extension ID
             let extId = null;
+
+            // Primary: use the extension field
             if (record.extension && record.extension.id) {
                 extId = String(record.extension.id);
             }
+
             if (!extId) continue;
-            if (!extensions[extId]) continue;
+
+            // If this extension isn't in our map, add it dynamically
+            if (!extensions[extId]) {
+                extensions[extId] = {
+                    id: extId,
+                    name: 'Extension ' + extId,
+                    extensionNumber: '',
+                };
+                allExtensions.push(extensions[extId]);
+            }
 
             if (!stats[extId]) {
                 stats[extId] = {
@@ -89,6 +120,9 @@ module.exports = async function handler(req, res) {
         const totalCalls = leaderboard.reduce((sum, r) => sum + r.calls, 0);
         const totalTalkTime = leaderboard.reduce((sum, r) => sum + r.talkTime, 0);
 
+        // Re-sort allExtensions after any dynamic additions
+        allExtensions.sort((a, b) => a.name.localeCompare(b.name));
+
         res.json({
             date,
             leaderboard,
@@ -96,6 +130,7 @@ module.exports = async function handler(req, res) {
             totalCalls,
             totalTalkTime,
             recordCount: allRecords.length,
+            extensionCount: allExtensions.length,
             lastUpdated: new Date().toISOString(),
         });
     } catch (err) {
