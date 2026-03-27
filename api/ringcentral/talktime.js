@@ -1,4 +1,4 @@
-const { rcGet, rcPost } = require('../../lib/ringcentral');
+  const { rcGet, rcPost } = require('../../lib/ringcentral');
   const { getUserId } = require('../../lib/auth');
 
   module.exports = async function handler(req, res) {
@@ -11,22 +11,22 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
       const debug = req.query.debug === '1';
 
       try {
-          const extensions = {};
-          const allExtensions = [];
+          var extensions = {};
+          var allExtensions = [];
 
           try {
-              let page = 1;
-              let hasMore = true;
+              var page = 1;
+              var hasMore = true;
               while (hasMore && page <= 10) {
-                  const extData = await rcGet('/restapi/v1.0/account/~/extension', {
+                  var extData = await rcGet('/restapi/v1.0/account/~/extension', {
                       perPage: '1000',
                       page: String(page),
                   });
-                  const recs = Array.isArray(extData.records) ? extData.records : [];
-                  for (let i = 0; i < recs.length; i++) {
-                      const ext = recs[i];
-                      const id = String(ext.id);
-                      const entry = {
+                  var recs = Array.isArray(extData.records) ? extData.records : [];
+                  for (var ei = 0; ei < recs.length; ei++) {
+                      var ext = recs[ei];
+                      var id = String(ext.id);
+                      var entry = {
                           id: id,
                           name: ext.name || ('Ext ' + (ext.extensionNumber || id)),
                           extensionNumber: ext.extensionNumber || '',
@@ -45,18 +45,16 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
 
           allExtensions.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
-          const now = new Date();
-          const todayStr = now.toISOString().split('T')[0];
-          const timeTo = (date >= todayStr) ? now.toISOString() : date + 'T23:59:59.999Z';
+          var now = new Date();
+          var todayStr = now.toISOString().split('T')[0];
+          var timeTo = (date >= todayStr) ? now.toISOString() : date + 'T23:59:59.999Z';
 
-          let analyticsData = null;
-          let analyticsError = null;
+          var analyticsData = null;
+          var analyticsError = null;
 
           try {
               analyticsData = await rcPost('/analytics/calls/v1/accounts/~/aggregation/fetch', {
-                  grouping: {
-                      groupBy: 'Users',
-                  },
+                  grouping: { groupBy: 'Users' },
                   timeSettings: {
                       timeZone: 'America/Chicago',
                       timeRange: {
@@ -76,100 +74,95 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
               });
           } catch (analyticsErr) {
               analyticsError = analyticsErr.message;
-              console.error('Analytics error:', analyticsErr);
           }
 
-          const stats = {};
-          for (let i = 0; i < allExtensions.length; i++) {
-              const ext = allExtensions[i];
-              stats[ext.id] = {
-                  id: ext.id,
-                  name: ext.name,
-                  extensionNumber: ext.extensionNumber,
-                  type: ext.type,
-                  status: ext.status,
-                  calls: 0,
-                  talkTime: 0,
-              };
+          var stats = {};
+          for (var ai = 0; ai < allExtensions.length; ai++) {
+              var e = allExtensions[ai];
+              stats[e.id] = { id: e.id, name: e.name, extensionNumber: e.extensionNumber, type: e.type, status: e.status, calls: 0, talkTime: 0 };
           }
 
+          var records = null;
           if (analyticsData) {
-              var records = null;
-              var allKeys = Object.keys(analyticsData);
-              for (var ki = 0; ki < allKeys.length; ki++) {
-                  if (Array.isArray(analyticsData[allKeys[ki]])) {
-                      records = analyticsData[allKeys[ki]];
+              var topKeys = Object.keys(analyticsData);
+              for (var ti = 0; ti < topKeys.length; ti++) {
+                  if (Array.isArray(analyticsData[topKeys[ti]])) {
+                      records = analyticsData[topKeys[ti]];
                       break;
                   }
               }
-              if (!records) {
-                  for (var ki2 = 0; ki2 < allKeys.length; ki2++) {
-                      var val = analyticsData[allKeys[ki2]];
-                      if (val && typeof val === 'object' && !Array.isArray(val)) {
-                          var subKeys = Object.keys(val);
-                          for (var si = 0; si < subKeys.length; si++) {
-                              if (Array.isArray(val[subKeys[si]])) {
-                                  records = val[subKeys[si]];
-                                  break;
-                              }
-                          }
-                          if (records) break;
+          }
+
+          if (records) {
+              for (var ri = 0; ri < records.length; ri++) {
+                  var rec = records[ri];
+
+                  var extId = null;
+                  if (typeof rec.key === 'string') extId = rec.key;
+                  else if (typeof rec.key === 'number') extId = String(rec.key);
+                  else if (rec.key && typeof rec.key === 'object') {
+                      var kf = Object.keys(rec.key);
+                      if (kf.length > 0) extId = String(rec.key[kf[0]]);
+                  }
+                  if (!extId) continue;
+
+                  var calls = 0;
+                  var duration = 0;
+
+                  var places = [rec.counters, rec.timers, rec];
+                  for (var pi = 0; pi < places.length; pi++) {
+                      var p = places[pi];
+                      if (!p) continue;
+                      if (!calls && p.allCalls) {
+                          calls = (typeof p.allCalls === 'object') ? (p.allCalls.sum || p.allCalls.value || 0) : Number(p.allCalls) || 0;
                       }
                   }
-              }
 
-              if (records && Array.isArray(records)) {
-                  for (var i = 0; i < records.length; i++) {
-                      var record = records[i];
-                      var extId = null;
-                      if (record.key) {
-                          extId = record.key.extensionId || record.key.userId || record.key.id || record.key.extensionNumber || null;
-                          if (!extId && typeof record.key === 'string') extId = record.key;
-                          if (!extId && typeof record.key === 'number') extId = record.key;
-                          if (!extId && typeof record.key === 'object') {
-                              var keyFields = Object.keys(record.key);
-                              if (keyFields.length > 0) extId = record.key[keyFields[0]];
+                  var durNames = ['callsSegmentsDuration', 'allCallsDuration', 'handleTime', 'talkTime'];
+                  for (var pi2 = 0; pi2 < places.length; pi2++) {
+                      var p2 = places[pi2];
+                      if (!p2) continue;
+                      for (var di = 0; di < durNames.length; di++) {
+                          if (p2[durNames[di]]) {
+                              duration = (typeof p2[durNames[di]] === 'object') ? (p2[durNames[di]].sum || p2[durNames[di]].value || 0) : Number(p2[durNames[di]]) || 0;
+                              if (duration) break;
                           }
                       }
-                      if (extId) extId = String(extId);
-                      if (!extId) continue;
+                      if (duration) break;
+                  }
 
-                      var calls = (record.counters && record.counters.allCalls && record.counters.allCalls.sum) ? record.counters.allCalls.sum : 0;
-                      var segDur = (record.timers && record.timers.callsSegmentsDuration && record.timers.callsSegmentsDuration.sum) ? record.timers.callsSegmentsDuration.sum : 0;
-                      var allDur = (record.timers && record.timers.allCallsDuration && record.timers.allCallsDuration.sum) ? record.timers.allCallsDuration.sum : 0;
-                      var duration = segDur || allDur;
+                  var repName = (rec.info && rec.info.name) ? rec.info.name : null;
 
-                      if (stats[extId]) {
-                          stats[extId].calls = calls;
-                          stats[extId].talkTime = duration;
-                      } else {
-                          stats[extId] = {
-                              id: extId,
-                              name: 'Extension ' + extId,
-                              extensionNumber: '',
-                              type: '',
-                              status: '',
-                              calls: calls,
-                              talkTime: duration,
-                          };
-                          allExtensions.push(stats[extId]);
-                      }
+                  if (stats[extId]) {
+                      stats[extId].calls = calls;
+                      stats[extId].talkTime = duration;
+                      if (repName) stats[extId].name = repName;
+                  } else {
+                      stats[extId] = {
+                          id: extId,
+                          name: repName || ('Extension ' + extId),
+                          extensionNumber: (rec.info && rec.info.extensionNumber) || '',
+                          type: '', status: '',
+                          calls: calls,
+                          talkTime: duration,
+                      };
+                      allExtensions.push(stats[extId]);
                   }
               }
           }
 
           var leaderboard = [];
-          var keys = Object.keys(stats);
-          for (var k = 0; k < keys.length; k++) {
-              leaderboard.push(stats[keys[k]]);
+          var sKeys = Object.keys(stats);
+          for (var li = 0; li < sKeys.length; li++) {
+              leaderboard.push(stats[sKeys[li]]);
           }
           leaderboard.sort(function(a, b) { return b.talkTime - a.talkTime; });
 
           var totalCalls = 0;
           var totalTalkTime = 0;
-          for (var t = 0; t < leaderboard.length; t++) {
-              totalCalls += leaderboard[t].calls;
-              totalTalkTime += leaderboard[t].talkTime;
+          for (var ci = 0; ci < leaderboard.length; ci++) {
+              totalCalls += leaderboard[ci].calls;
+              totalTalkTime += leaderboard[ci].talkTime;
           }
 
           allExtensions.sort(function(a, b) { return a.name.localeCompare(b.name); });
@@ -184,16 +177,12 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
               lastUpdated: new Date().toISOString(),
           };
 
-          if (analyticsError) {
-              response.analyticsError = analyticsError;
-          }
+          if (analyticsError) response.analyticsError = analyticsError;
 
-          if (debug && analyticsData) {
-              var snapshot = JSON.stringify(analyticsData).slice(0, 1000);
-              response._analyticsSnapshot = snapshot;
+          if (debug) {
               response._recordsFound = records ? records.length : 0;
               if (records && records.length > 0) {
-                  response._firstRecord = JSON.stringify(records[0]).slice(0, 500);
+                  response._firstRecord = JSON.stringify(records[0]);
               }
           }
 
