@@ -170,12 +170,10 @@ module.exports = async function handler(req, res) {
         }
 
         if (debug && analyticsData) {
-            response._analyticsKeys = Object.keys(analyticsData);
-            response._analyticsDataType = typeof analyticsData.data;
-            response._analyticsDataIsArray = Array.isArray(analyticsData.data);
-            if (analyticsData.data && !Array.isArray(analyticsData.data)) {
-                response._analyticsDataKeys = Object.keys(analyticsData.data);
-            }
+            // Show a trimmed snapshot of the analytics response so we can see its shape
+            var snapshot = JSON.stringify(analyticsData).slice(0, 1000);
+            response._analyticsSnapshot = snapshot;
+            response._recordsFound = records ? records.length : 0;
         }
 
         res.json(response);
