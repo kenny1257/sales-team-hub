@@ -59,6 +59,7 @@
         if (tab === 'home') loadHome();
         if (tab === 'checkin') loadCheckin();
         if (tab === 'pricematch') loadPriceMatch();
+        if (tab === 'dailytalk') loadDailyTalk();
     }
 
     // ================ LOGOUT ================
@@ -523,6 +524,145 @@
                 <div><div class="summary-label">Document</div>${pdfHtml}</div>
             </div>
         </div>`;
+    }
+
+    // ================ DAILY TALK ================
+    let allExtensions = [];
+    let selectedExtIds = JSON.parse(localStorage.getItem('talkFilterIds') || 'null');
+    let talkData = null;
+
+    async function loadDailyTalk() {
+        const datePicker = document.getElementById('talk-date');
+        if (!datePicker.value) datePicker.value = todayStr();
+
+        setupTalkControls();
+        await loadExtensions();
+        await fetchTalkTime(datePicker.value);
+    }
+
+    function setupTalkControls() {
+        const datePicker = document.getElementById('talk-date');
+        const refreshBtn = document.getElementById('talk-refresh-btn');
+        const filterBtn = document.getElementById('talk-filter-btn');
+        const filterClose = document.getElementById('talk-filter-close');
+        const filterApply = document.getElementById('talk-filter-apply');
+        const selectAll = document.getElementById('filter-select-all');
+        const deselectAll = document.getElementById('filter-deselect-all');
+
+        datePicker.onchange = () => fetchTalkTime(datePicker.value);
+        refreshBtn.onclick = () => fetchTalkTime(datePicker.value);
+
+        filterBtn.onclick = () => {
+            const panel = document.getElementById('talk-filter-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        };
+        filterClose.onclick = () => {
+            document.getElementById('talk-filter-panel').style.display = 'none';
+        };
+        filterApply.onclick = () => {
+            const checks = document.querySelectorAll('#talk-filter-list input[type="checkbox"]');
+            selectedExtIds = [];
+            checks.forEach(cb => { if (cb.checked) selectedExtIds.push(cb.value); });
+            localStorage.setItem('talkFilterIds', JSON.stringify(selectedExtIds));
+            document.getElementById('talk-filter-panel').style.display = 'none';
+            renderLeaderboard();
+        };
+        selectAll.onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = true);
+        };
+        deselectAll.onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = false);
+        };
+    }
+
+    async function loadExtensions() {
+        try {
+            const data = await api('/api/ringcentral/extensions');
+            allExtensions = data.extensions;
+            renderFilterList();
+        } catch (err) {
+            console.error('Extensions error:', err);
+        }
+    }
+
+    function renderFilterList() {
+        const list = document.getElementById('talk-filter-list');
+        const isAll = !selectedExtIds;
+        list.innerHTML = allExtensions.map(ext => {
+            const checked = isAll || selectedExtIds.includes(ext.id) ? 'checked' : '';
+            return `<label class="filter-item">
+                <input type="checkbox" value="${ext.id}" ${checked}>
+                ${esc(ext.name)}
+            </label>`;
+        }).join('');
+    }
+
+    async function fetchTalkTime(date) {
+        const board = document.getElementById('talk-leaderboard');
+        board.innerHTML = '<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading talk time data...</p>';
+
+        try {
+            const data = await api(`/api/ringcentral/talktime?date=${date}`);
+            talkData = data;
+            renderLeaderboard();
+        } catch (err) {
+            board.innerHTML = `<div class="no-data-message"><i class="fa-solid fa-triangle-exclamation"></i>${esc(err.message)}</div>`;
+            document.getElementById('talk-last-updated').textContent = '';
+        }
+    }
+
+    function renderLeaderboard() {
+        if (!talkData) return;
+        const board = document.getElementById('talk-leaderboard');
+
+        let items = talkData.leaderboard;
+        if (selectedExtIds && selectedExtIds.length > 0) {
+            items = items.filter(r => selectedExtIds.includes(r.id));
+        }
+
+        // Update totals
+        const totalCalls = items.reduce((s, r) => s + r.calls, 0);
+        const totalTime = items.reduce((s, r) => s + r.talkTime, 0);
+        document.getElementById('talk-total-calls').textContent = totalCalls.toLocaleString();
+        document.getElementById('talk-total-time').textContent = fmtDuration(totalTime);
+        document.getElementById('talk-total-reps').textContent = items.filter(r => r.calls > 0).length;
+
+        const updated = new Date(talkData.lastUpdated);
+        document.getElementById('talk-last-updated').textContent =
+            `Last updated: ${updated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+
+        if (items.length === 0) {
+            board.innerHTML = '<div class="no-data-message"><i class="fa-solid fa-phone-slash"></i>No call data found for this date.</div>';
+            return;
+        }
+
+        board.innerHTML = items.map((rep, i) => {
+            const rank = i + 1;
+            const rankClass = rank <= 3 ? ` rank-${rank}` : '';
+            return `
+            <div class="leaderboard-item${rankClass}">
+                <div class="leaderboard-rank">#${rank}</div>
+                <div class="leaderboard-name">${esc(rep.name)}</div>
+                <div class="leaderboard-stat">
+                    <span class="leaderboard-stat-value">${rep.calls}</span>
+                    <span class="leaderboard-stat-label">Calls</span>
+                </div>
+                <div class="leaderboard-time">
+                    <span class="leaderboard-time-value">${fmtDuration(rep.talkTime)}</span>
+                    <span class="leaderboard-time-label">Talk Time</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function fmtDuration(seconds) {
+        if (!seconds || seconds === 0) return '0m';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
     }
 
     function fileToBase64(file) {

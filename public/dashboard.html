@@ -179,12 +179,55 @@
             </div>
         </section>
 
-        <!-- DAILY TALK TAB (placeholder) -->
+        <!-- DAILY TALK TAB -->
         <section id="tab-dailytalk" class="tab-content">
-            <div class="placeholder-section">
-                <i class="fa-solid fa-comments placeholder-icon"></i>
-                <h2>Daily Talk</h2>
-                <p>This section is coming soon.</p>
+            <div class="talk-header">
+                <div>
+                    <h2 class="section-title"><i class="fa-solid fa-phone-volume"></i> Daily Talk Time</h2>
+                    <p class="text-muted" id="talk-last-updated"></p>
+                </div>
+                <div class="talk-controls">
+                    <input type="date" id="talk-date" class="date-picker">
+                    <button id="talk-filter-btn" class="btn btn-secondary"><i class="fa-solid fa-user-group"></i> Select Reps</button>
+                    <button id="talk-refresh-btn" class="btn btn-secondary" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+            </div>
+
+            <!-- Filter panel -->
+            <div id="talk-filter-panel" class="filter-panel" style="display:none;">
+                <div class="filter-panel-inner">
+                    <div class="filter-panel-header">
+                        <span><i class="fa-solid fa-user-group"></i> Select Reps to Display</span>
+                        <button id="talk-filter-close" class="btn-logout"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="filter-actions">
+                        <button id="filter-select-all" class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;">Select All</button>
+                        <button id="filter-deselect-all" class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;">Deselect All</button>
+                    </div>
+                    <div id="talk-filter-list" class="filter-list"></div>
+                    <button id="talk-filter-apply" class="btn btn-primary" style="width:100%; margin-top:12px;">Apply Filter</button>
+                </div>
+            </div>
+
+            <!-- Team totals -->
+            <div class="talk-totals" id="talk-totals">
+                <div class="talk-total-item">
+                    <span class="talk-total-number" id="talk-total-calls">—</span>
+                    <span class="talk-total-label">Total Calls</span>
+                </div>
+                <div class="talk-total-item">
+                    <span class="talk-total-number" id="talk-total-time">—</span>
+                    <span class="talk-total-label">Total Talk Time</span>
+                </div>
+                <div class="talk-total-item">
+                    <span class="talk-total-number" id="talk-total-reps">—</span>
+                    <span class="talk-total-label">Active Reps</span>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div id="talk-leaderboard" class="leaderboard">
+                <p class="text-muted">Select a date and click refresh to load talk time data.</p>
             </div>
         </section>
 
