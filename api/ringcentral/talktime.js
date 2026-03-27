@@ -1,4 +1,4 @@
-const { rcGet } = require('../../lib/ringcentral');
+const { rcGet, rcPost } = require('../../lib/ringcentral');
 const { getUserId } = require('../../lib/auth');
 
 module.exports = async function handler(req, res) {
@@ -8,12 +8,9 @@ module.exports = async function handler(req, res) {
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     const date = req.query.date || new Date().toISOString().split('T')[0];
-    // No 'Z' suffix — RingCentral will use account's local timezone
-    const dateFrom = `${date}T00:00:00`;
-    const dateTo = `${date}T23:59:59`;
 
     try {
-        // Fetch ALL extensions — no type or status filter so we don't miss anyone
+        // 1. Fetch ALL extensions for the filter list
         let allExtRecords = [];
         let extPage = 1;
         let extHasMore = true;
@@ -31,7 +28,6 @@ module.exports = async function handler(req, res) {
             extPage++;
         }
 
-        // Build extensions map — include EVERYTHING, no filtering
         const extensions = {};
         const allExtensions = [];
         for (const ext of allExtRecords) {
@@ -48,34 +44,37 @@ module.exports = async function handler(req, res) {
         }
         allExtensions.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Fetch account-level call logs with pagination
-        let allRecords = [];
-        let page = 1;
-        let hasMore = true;
+        // 2. Fetch aggregated call data from the Analytics API
+        //    This gives the EXACT same numbers as the RingCentral dashboard
+        const nextDate = new Date(date + 'T00:00:00');
+        nextDate.setDate(nextDate.getDate() + 1);
+        const nextDateStr = nextDate.toISOString().split('T')[0];
 
-        while (hasMore && page <= 30) {
-            const logData = await rcGet('/restapi/v1.0/account/~/call-log', {
-                dateFrom,
-                dateTo,
-                view: 'Simple',
-                perPage: '1000',
-                page: String(page),
-            });
+        const analyticsData = await rcPost('/analytics/calls/v1/accounts/~/aggregation/fetch', {
+            grouping: {
+                groupBy: 'Users',
+            },
+            timeSettings: {
+                timeRange: {
+                    timeFrom: `${date}T00:00:00.000Z`,
+                    timeTo: `${nextDateStr}T00:00:00.000Z`,
+                },
+            },
+            responseOptions: {
+                counters: {
+                    allCalls: { aggregationType: 'Sum' },
+                },
+                timers: {
+                    allCallsDuration: { aggregationType: 'Sum' },
+                    handleTime: { aggregationType: 'Sum' },
+                },
+            },
+        });
 
-            allRecords = allRecords.concat(logData.records || []);
-
-            if (logData.paging) {
-                hasMore = logData.paging.page < logData.paging.totalPages;
-            } else if (logData.navigation && logData.navigation.nextPage) {
-                hasMore = true;
-            } else {
-                hasMore = false;
-            }
-            page++;
-        }
-
-        // Initialize ALL extensions at 0 so everyone shows up
+        // 3. Build stats from analytics data
         const stats = {};
+
+        // Initialize ALL extensions at 0
         for (const ext of allExtensions) {
             stats[ext.id] = {
                 ...ext,
@@ -84,29 +83,32 @@ module.exports = async function handler(req, res) {
             };
         }
 
-        // Aggregate call log data on top
-        for (const record of allRecords) {
-            let extId = null;
-
-            if (record.extension && record.extension.id) {
-                extId = String(record.extension.id);
-            }
-
+        // Fill in analytics data
+        for (const record of (analyticsData.data || [])) {
+            const extId = record.key ? String(record.key.extensionId) : null;
             if (!extId) continue;
 
-            // If this extension isn't in our map, add it dynamically
-            if (!stats[extId]) {
-                const entry = {
+            const calls = record.counters?.allCalls?.sum || 0;
+            // Use handleTime to match RC dashboard's "Total Handle Time"
+            const handleTime = record.timers?.handleTime?.sum || 0;
+            const talkDuration = record.timers?.allCallsDuration?.sum || 0;
+
+            if (stats[extId]) {
+                stats[extId].calls = calls;
+                stats[extId].talkTime = handleTime || talkDuration;
+            } else {
+                // Extension from analytics not in our extension list
+                stats[extId] = {
                     id: extId,
                     name: 'Extension ' + extId,
                     extensionNumber: '',
+                    type: '',
+                    status: '',
+                    calls,
+                    talkTime: handleTime || talkDuration,
                 };
-                stats[extId] = { ...entry, calls: 0, talkTime: 0 };
-                allExtensions.push(entry);
+                allExtensions.push(stats[extId]);
             }
-
-            stats[extId].calls++;
-            stats[extId].talkTime += record.duration || 0;
         }
 
         // Sort by talk time descending
@@ -115,7 +117,6 @@ module.exports = async function handler(req, res) {
         const totalCalls = leaderboard.reduce((sum, r) => sum + r.calls, 0);
         const totalTalkTime = leaderboard.reduce((sum, r) => sum + r.talkTime, 0);
 
-        // Re-sort allExtensions after any dynamic additions
         allExtensions.sort((a, b) => a.name.localeCompare(b.name));
 
         res.json({
@@ -124,7 +125,6 @@ module.exports = async function handler(req, res) {
             allExtensions,
             totalCalls,
             totalTalkTime,
-            recordCount: allRecords.length,
             extensionCount: allExtensions.length,
             lastUpdated: new Date().toISOString(),
         });
