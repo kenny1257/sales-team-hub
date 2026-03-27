@@ -1,0 +1,11 @@
+{
+  "name": "metal-america-sales-hub",
+  "version": "1.0.0",
+  "description": "Metal America Sales Team Hub Portal",
+  "private": true,
+  "dependencies": {
+    "@vercel/postgres": "^0.10.0",
+    "google-auth-library": "^9.14.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
