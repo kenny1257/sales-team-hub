@@ -1,4 +1,4 @@
-const { rcGet, rcPost } = require('../../lib/ringcentral');
+ const { rcGet, rcPost } = require('../../lib/ringcentral');
   const { getUserId } = require('../../lib/auth');
 
   module.exports = async function handler(req, res) {
@@ -95,12 +95,27 @@ const { rcGet, rcPost } = require('../../lib/ringcentral');
 
           if (analyticsData) {
               var records = null;
-              if (Array.isArray(analyticsData.data)) {
-                  records = analyticsData.data;
-              } else if (Array.isArray(analyticsData.records)) {
-                  records = analyticsData.records;
-              } else if (analyticsData.data && Array.isArray(analyticsData.data.records)) {
-                  records = analyticsData.data.records;
+              var allKeys = Object.keys(analyticsData);
+              for (var ki = 0; ki < allKeys.length; ki++) {
+                  if (Array.isArray(analyticsData[allKeys[ki]])) {
+                      records = analyticsData[allKeys[ki]];
+                      break;
+                  }
+              }
+              if (!records) {
+                  for (var ki2 = 0; ki2 < allKeys.length; ki2++) {
+                      var val = analyticsData[allKeys[ki2]];
+                      if (val && typeof val === 'object' && !Array.isArray(val)) {
+                          var subKeys = Object.keys(val);
+                          for (var si = 0; si < subKeys.length; si++) {
+                              if (Array.isArray(val[subKeys[si]])) {
+                                  records = val[subKeys[si]];
+                                  break;
+                              }
+                          }
+                          if (records) break;
+                      }
+                  }
               }
 
               if (records && Array.isArray(records)) {
