@@ -58,6 +58,7 @@
     function onTabChange(tab) {
         if (tab === 'home') loadHome();
         if (tab === 'checkin') loadCheckin();
+        if (tab === 'pricematch') loadPriceMatch();
     }
 
     // ================ LOGOUT ================
@@ -317,6 +318,220 @@
 
         html += `</div></div>`;
         return html;
+    }
+
+    // ================ PRICE MATCH / DISCOUNT ================
+    let currentRequestType = 'price_match';
+    let selectedFile = null;
+
+    function loadPriceMatch() {
+        setupTypeToggle();
+        setupFileUpload();
+        setupRequestForm();
+        loadMyRequests();
+
+        if (currentUser.role === 'admin') {
+            document.getElementById('admin-requests-panel').style.display = 'block';
+            loadAdminRequests();
+        }
+    }
+
+    function setupTypeToggle() {
+        const btns = document.querySelectorAll('.type-toggle-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentRequestType = btn.dataset.type;
+                updateFormLabels();
+            });
+        });
+        updateFormLabels();
+    }
+
+    function updateFormLabels() {
+        const title = document.getElementById('request-form-title');
+        const lbl = document.getElementById('lbl-manufacturer');
+        if (currentRequestType === 'price_match') {
+            title.innerHTML = '<i class="fa-solid fa-scale-balanced"></i> Submit Price Match Request';
+            lbl.textContent = 'Which manufacturer are we price matching?';
+        } else {
+            title.innerHTML = '<i class="fa-solid fa-percent"></i> Submit Discount Request';
+            lbl.textContent = 'Which manufacturer / product is this for?';
+        }
+    }
+
+    function setupFileUpload() {
+        const zone = document.getElementById('file-upload-zone');
+        const input = document.getElementById('req-pdf');
+        if (!zone || !input) return;
+
+        input.addEventListener('change', () => {
+            if (input.files.length > 0) handleFileSelect(input.files[0]);
+        });
+
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+                input.files = e.dataTransfer.files;
+            }
+        });
+    }
+
+    function handleFileSelect(file) {
+        const zone = document.getElementById('file-upload-zone');
+        if (!file.type.includes('pdf')) {
+            alert('Please upload a PDF file.');
+            return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            alert('File must be under 3MB.');
+            return;
+        }
+        selectedFile = file;
+        zone.classList.add('has-file');
+        zone.innerHTML = `
+            <i class="fa-solid fa-file-pdf"></i>
+            <p>File selected</p>
+            <p class="file-name">${esc(file.name)}</p>
+            <p class="file-hint">Click to change file</p>
+            <input type="file" id="req-pdf" accept=".pdf">
+        `;
+        document.getElementById('req-pdf').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
+        });
+    }
+
+    function setupRequestForm() {
+        const form = document.getElementById('request-form');
+        if (!form) return;
+        form.removeEventListener('submit', handleRequestSubmit);
+        form.addEventListener('submit', handleRequestSubmit);
+    }
+
+    async function handleRequestSubmit(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        let pdfData = null;
+        let pdfFilename = null;
+
+        if (selectedFile) {
+            pdfData = await fileToBase64(selectedFile);
+            pdfFilename = selectedFile.name;
+        }
+
+        try {
+            await api('/api/request', 'POST', {
+                type: currentRequestType,
+                manufacturer: document.getElementById('req-manufacturer').value.trim(),
+                needed_by: document.getElementById('req-needed-by').value,
+                customer_needs: document.getElementById('req-customer-needs').value.trim(),
+                pdf_data: pdfData,
+                pdf_filename: pdfFilename,
+            });
+
+            // Show success
+            document.getElementById('request-form-area').innerHTML = `
+                <div class="card">
+                    <div class="success-message">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <h3>Request Submitted</h3>
+                        <p>Your ${currentRequestType === 'price_match' ? 'price match' : 'discount'} request has been sent to your manager.</p>
+                        <button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Submit Another</button>
+                    </div>
+                </div>
+            `;
+            selectedFile = null;
+            loadMyRequests();
+            if (currentUser.role === 'admin') loadAdminRequests();
+        } catch (err) {
+            alert(err.message || 'Submission failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request';
+        }
+    }
+
+    async function loadMyRequests() {
+        const area = document.getElementById('my-requests-area');
+        if (!area) return;
+        try {
+            const data = await api('/api/request/mine');
+            if (data.requests.length === 0) {
+                area.innerHTML = '';
+                return;
+            }
+            area.innerHTML = `
+                <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Requests</h3>
+                <div class="team-grid">${data.requests.map(r => renderRequestCard(r, false)).join('')}</div>
+            `;
+        } catch { area.innerHTML = ''; }
+    }
+
+    async function loadAdminRequests() {
+        const grid = document.getElementById('admin-requests-grid');
+        if (!grid) return;
+        grid.innerHTML = '<p class="text-muted">Loading...</p>';
+        try {
+            const data = await api('/api/admin/requests');
+            if (data.requests.length === 0) {
+                grid.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-inbox"></i>No requests submitted yet.</div>';
+                return;
+            }
+            grid.innerHTML = data.requests.map(r => renderRequestCard(r, true)).join('');
+        } catch {
+            grid.innerHTML = '<p class="text-muted">Could not load requests.</p>';
+        }
+    }
+
+    function renderRequestCard(r, showUser) {
+        const isPM = r.type === 'price_match';
+        const typeLabel = isPM ? 'Price Match' : 'Discount Request';
+        const typeBadgeClass = isPM ? 'price-match' : 'discount';
+        const cardClass = isPM ? '' : ' type-discount';
+        const date = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const userHtml = showUser ? `
+            <div class="request-user">
+                <img src="${r.picture || ''}" alt="">
+                <div class="request-user-info">
+                    <div class="request-user-name">${esc(r.name)}</div>
+                    <div class="request-date">${date}</div>
+                </div>
+            </div>` : `<div class="request-date" style="font-size:0.8rem; color:var(--medium);">${date}</div>`;
+
+        const pdfHtml = r.pdf_filename
+            ? `<a href="/api/request/pdf/${r.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(r.pdf_filename)}</a>`
+            : '<span class="text-muted" style="font-size:0.82rem;">No PDF attached</span>';
+
+        return `
+        <div class="request-card${cardClass}">
+            <div class="request-meta">
+                ${userHtml}
+                <span class="request-type-badge ${typeBadgeClass}">${typeLabel}</span>
+            </div>
+            <div class="request-fields">
+                <div><div class="summary-label">Manufacturer</div><div class="summary-value">${esc(r.manufacturer)}</div></div>
+                <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
+                <div><div class="summary-label">Customer Needs</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
+                <div><div class="summary-label">Document</div>${pdfHtml}</div>
+            </div>
+        </div>`;
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     // ================ HELPERS ================

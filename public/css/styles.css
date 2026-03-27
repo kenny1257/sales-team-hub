@@ -56,7 +56,7 @@ input, textarea, select { font-family: var(--font); }
 
 .login-wrapper {
     width: 100%;
-    max-width: 480px;
+    max-width: 580px;
     padding: 20px;
 }
 
@@ -64,8 +64,12 @@ input, textarea, select { font-family: var(--font); }
     background: var(--white);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    overflow: hidden;
+    overflow: visible;
     text-align: center;
+}
+
+.accent-bar {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .accent-bar {
@@ -76,18 +80,19 @@ input, textarea, select { font-family: var(--font); }
 .login-logos {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 32px 40px 16px;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px 48px 20px;
 }
 
 .logo-name {
-    height: 60px;
+    height: 64px;
     width: auto;
     object-fit: contain;
 }
 
 .logo-mascot {
-    height: 80px;
+    height: 90px;
     width: auto;
     object-fit: contain;
 }
@@ -670,6 +675,219 @@ textarea.form-control { min-height: 90px; }
     font-weight: 600;
     color: var(--dark);
     margin-bottom: 8px;
+}
+
+/* ====================================================
+   PRICE MATCH / DISCOUNT REQUEST
+   ==================================================== */
+
+/* -- Type toggle -- */
+.type-toggle {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 420px;
+}
+
+.type-toggle-btn {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    background: var(--white);
+    color: var(--medium);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.type-toggle-btn:not(:last-child) {
+    border-right: 1px solid var(--border);
+}
+
+.type-toggle-btn.active {
+    background: var(--red);
+    color: var(--white);
+}
+
+.type-toggle-btn:hover:not(.active) {
+    background: var(--light);
+    color: var(--dark);
+}
+
+/* -- File upload zone -- */
+.file-upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+    position: relative;
+}
+
+.file-upload-zone:hover,
+.file-upload-zone.drag-over {
+    border-color: var(--red);
+    background: var(--red-light);
+}
+
+.file-upload-zone i {
+    font-size: 2rem;
+    color: var(--border);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.file-upload-zone:hover i,
+.file-upload-zone.drag-over i {
+    color: var(--red);
+}
+
+.file-upload-zone p {
+    font-size: 0.88rem;
+    color: var(--medium);
+}
+
+.file-upload-zone .file-hint {
+    font-size: 0.78rem;
+    color: var(--gray-badge);
+    margin-top: 4px;
+}
+
+.file-upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-upload-zone.has-file {
+    border-color: var(--green);
+    background: var(--green-bg);
+}
+
+.file-upload-zone.has-file i {
+    color: var(--green);
+}
+
+.file-upload-zone .file-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin-top: 4px;
+}
+
+/* -- Request cards (admin view) -- */
+.request-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    border: 1px solid var(--border-light);
+    border-left: 4px solid var(--red);
+    transition: box-shadow var(--transition);
+}
+.request-card:hover { box-shadow: var(--shadow); }
+
+.request-card.type-discount {
+    border-left-color: var(--amber);
+}
+
+.request-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.request-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.request-user img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+}
+
+.request-user-info .request-user-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark);
+}
+
+.request-user-info .request-date {
+    font-size: 0.75rem;
+    color: var(--medium);
+}
+
+.request-type-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.request-type-badge.price-match {
+    background: var(--red-light);
+    color: var(--red);
+}
+
+.request-type-badge.discount {
+    background: var(--amber-bg);
+    color: var(--amber);
+}
+
+.request-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.request-pdf-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--light);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--dark);
+    margin-top: 4px;
+    transition: background var(--transition);
+}
+.request-pdf-link:hover { background: var(--border); }
+
+/* -- Success message -- */
+.success-message {
+    text-align: center;
+    padding: 40px 20px;
+}
+.success-message i {
+    font-size: 3rem;
+    color: var(--green);
+    margin-bottom: 12px;
+}
+.success-message h3 {
+    font-size: 1.15rem;
+    color: var(--dark);
+    margin-bottom: 8px;
+}
+.success-message p {
+    color: var(--medium);
+    font-size: 0.92rem;
+    margin-bottom: 20px;
 }
 
 /* ====================================================

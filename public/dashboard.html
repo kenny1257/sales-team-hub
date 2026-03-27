@@ -114,12 +114,60 @@
             </div>
         </section>
 
-        <!-- PRICE MATCH TAB (placeholder) -->
+        <!-- PRICE MATCH / DISCOUNT TAB -->
         <section id="tab-pricematch" class="tab-content">
-            <div class="placeholder-section">
-                <i class="fa-solid fa-tags placeholder-icon"></i>
-                <h2>Price Match / Discount Check Request</h2>
-                <p>This section is coming soon.</p>
+            <h2 class="section-title"><i class="fa-solid fa-tags"></i> Price Match / Discount Request</h2>
+
+            <!-- Type toggle -->
+            <div class="type-toggle">
+                <button class="type-toggle-btn active" data-type="price_match">
+                    <i class="fa-solid fa-scale-balanced"></i> Price Match
+                </button>
+                <button class="type-toggle-btn" data-type="discount">
+                    <i class="fa-solid fa-percent"></i> Discount Request
+                </button>
+            </div>
+
+            <!-- Request form -->
+            <div id="request-form-area">
+                <div class="card">
+                    <h3 class="card-title" id="request-form-title"><i class="fa-solid fa-scale-balanced"></i> Submit Price Match Request</h3>
+                    <form id="request-form">
+                        <div class="form-group">
+                            <label class="form-label" id="lbl-manufacturer">Which manufacturer are we price matching?</label>
+                            <input type="text" class="form-control" id="req-manufacturer" placeholder="e.g. ABC Steel, XYZ Metals..." required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">When do you need this by?</label>
+                            <input type="date" class="form-control" id="req-needed-by" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">What does the customer need to move forward?</label>
+                            <textarea class="form-control" id="req-customer-needs" placeholder="Describe what the customer is looking for to close the deal..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Upload Contract / Quote (PDF)</label>
+                            <div class="file-upload-zone" id="file-upload-zone">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <p>Click or drag a PDF here to upload</p>
+                                <p class="file-hint">PDF files up to 3MB</p>
+                                <input type="file" id="req-pdf" accept=".pdf">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- My past requests -->
+            <div id="my-requests-area" style="margin-top:28px;"></div>
+
+            <!-- Admin: all team requests -->
+            <div id="admin-requests-panel" class="admin-panel" style="display:none;">
+                <h2 class="section-title"><i class="fa-solid fa-inbox"></i> Team Submissions</h2>
+                <div id="admin-requests-grid" class="team-grid">
+                    <!-- Dynamically filled -->
+                </div>
             </div>
         </section>
 
