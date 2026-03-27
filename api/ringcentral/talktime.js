@@ -55,6 +55,7 @@ module.exports = async function handler(req, res) {
                 groupBy: 'Users',
             },
             timeSettings: {
+                timeZone: 'America/Chicago',
                 timeRange: {
                     timeFrom: `${date}T00:00:00.000Z`,
                     timeTo: `${nextDateStr}T00:00:00.000Z`,
