@@ -31,24 +31,17 @@ module.exports = async function handler(req, res) {
             extPage++;
         }
 
-        // Build extensions map — include all types but tag them
+        // Build extensions map — include EVERYTHING, no filtering
         const extensions = {};
         const allExtensions = [];
         for (const ext of allExtRecords) {
             const id = String(ext.id);
-            // Skip non-person extensions like Department, Voicemail, etc.
-            // But keep User, DigitalUser, VirtualUser, FaxUser types
-            if (ext.type === 'Department' || ext.type === 'Announcement' ||
-                ext.type === 'SharedLinesGroup' || ext.type === 'PagingOnly' ||
-                ext.type === 'IvrMenu' || ext.type === 'ParkLocation') {
-                continue;
-            }
             const entry = {
                 id,
                 name: ext.name || ('Ext ' + ext.extensionNumber),
-                extensionNumber: ext.extensionNumber,
-                type: ext.type,
-                status: ext.status,
+                extensionNumber: ext.extensionNumber || '',
+                type: ext.type || '',
+                status: ext.status || '',
             };
             extensions[id] = entry;
             allExtensions.push(entry);
