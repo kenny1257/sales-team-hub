@@ -527,72 +527,70 @@
     }
 
     // ================ DAILY TALK ================
-    let allExtensions = [];
-    let selectedExtIds = JSON.parse(localStorage.getItem('talkFilterIds') || 'null');
+    // hiddenExtIds = IDs the user has REMOVED from the board
+    let hiddenExtIds = JSON.parse(localStorage.getItem('talkHiddenIds') || '[]');
     let talkData = null;
+    let talkControlsReady = false;
 
     async function loadDailyTalk() {
         const datePicker = document.getElementById('talk-date');
         if (!datePicker.value) datePicker.value = todayStr();
 
-        setupTalkControls();
-        await loadExtensions();
+        if (!talkControlsReady) {
+            setupTalkControls();
+            talkControlsReady = true;
+        }
         await fetchTalkTime(datePicker.value);
     }
 
     function setupTalkControls() {
         const datePicker = document.getElementById('talk-date');
-        const refreshBtn = document.getElementById('talk-refresh-btn');
-        const filterBtn = document.getElementById('talk-filter-btn');
-        const filterClose = document.getElementById('talk-filter-close');
-        const filterApply = document.getElementById('talk-filter-apply');
-        const selectAll = document.getElementById('filter-select-all');
-        const deselectAll = document.getElementById('filter-deselect-all');
-
+        document.getElementById('talk-refresh-btn').onclick = () => fetchTalkTime(datePicker.value);
         datePicker.onchange = () => fetchTalkTime(datePicker.value);
-        refreshBtn.onclick = () => fetchTalkTime(datePicker.value);
 
-        filterBtn.onclick = () => {
+        document.getElementById('talk-filter-btn').onclick = () => {
             const panel = document.getElementById('talk-filter-panel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) buildFilterList();
         };
-        filterClose.onclick = () => {
+
+        document.getElementById('talk-filter-close').onclick = () => {
             document.getElementById('talk-filter-panel').style.display = 'none';
         };
-        filterApply.onclick = () => {
-            const checks = document.querySelectorAll('#talk-filter-list input[type="checkbox"]');
-            selectedExtIds = [];
-            checks.forEach(cb => { if (cb.checked) selectedExtIds.push(cb.value); });
-            localStorage.setItem('talkFilterIds', JSON.stringify(selectedExtIds));
+
+        document.getElementById('filter-select-all').onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = true);
+        };
+
+        document.getElementById('filter-deselect-all').onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = false);
+        };
+
+        document.getElementById('talk-filter-apply').onclick = () => {
+            // Anything UNCHECKED gets added to the hidden list
+            hiddenExtIds = [];
+            document.querySelectorAll('#talk-filter-list input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked) hiddenExtIds.push(cb.value);
+            });
+            localStorage.setItem('talkHiddenIds', JSON.stringify(hiddenExtIds));
             document.getElementById('talk-filter-panel').style.display = 'none';
             renderLeaderboard();
         };
-        selectAll.onclick = () => {
-            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = true);
-        };
-        deselectAll.onclick = () => {
-            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = false);
-        };
     }
 
-    async function loadExtensions() {
-        try {
-            const data = await api('/api/ringcentral/extensions');
-            allExtensions = data.extensions;
-            renderFilterList();
-        } catch (err) {
-            console.error('Extensions error:', err);
-        }
-    }
-
-    function renderFilterList() {
+    function buildFilterList() {
         const list = document.getElementById('talk-filter-list');
-        const isAll = !selectedExtIds;
-        list.innerHTML = allExtensions.map(ext => {
-            const checked = isAll || selectedExtIds.includes(ext.id) ? 'checked' : '';
+        if (!talkData || !talkData.leaderboard.length) {
+            list.innerHTML = '<p class="text-muted" style="padding:12px;">No reps loaded yet. Load data first.</p>';
+            return;
+        }
+        // Build checkboxes from leaderboard data — checked = visible, unchecked = hidden
+        list.innerHTML = talkData.leaderboard.map(rep => {
+            const isHidden = hiddenExtIds.includes(rep.id);
             return `<label class="filter-item">
-                <input type="checkbox" value="${ext.id}" ${checked}>
-                ${esc(ext.name)}
+                <input type="checkbox" value="${rep.id}" ${isHidden ? '' : 'checked'}>
+                ${esc(rep.name)}
             </label>`;
         }).join('');
     }
@@ -606,7 +604,7 @@
             talkData = data;
             renderLeaderboard();
         } catch (err) {
-            board.innerHTML = `<div class="no-data-message"><i class="fa-solid fa-triangle-exclamation"></i>${esc(err.message)}</div>`;
+            board.innerHTML = `<div class="no-data-message"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(err.message)}</div>`;
             document.getElementById('talk-last-updated').textContent = '';
         }
     }
@@ -615,10 +613,8 @@
         if (!talkData) return;
         const board = document.getElementById('talk-leaderboard');
 
-        let items = talkData.leaderboard;
-        if (selectedExtIds && selectedExtIds.length > 0) {
-            items = items.filter(r => selectedExtIds.includes(r.id));
-        }
+        // Filter out hidden reps
+        const items = talkData.leaderboard.filter(r => !hiddenExtIds.includes(r.id));
 
         // Update totals
         const totalCalls = items.reduce((s, r) => s + r.calls, 0);
