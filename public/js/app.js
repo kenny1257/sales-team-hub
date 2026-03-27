@@ -527,14 +527,20 @@
     }
 
     // ================ DAILY TALK ================
-    // hiddenExtIds = IDs the user has REMOVED from the board
-    let hiddenExtIds = JSON.parse(localStorage.getItem('talkHiddenIds') || '[]');
+    // hiddenExtIds = IDs the admin has REMOVED from the board (shared for all users)
+    let hiddenExtIds = [];
     let talkData = null;
     let talkControlsReady = false;
 
     async function loadDailyTalk() {
         const datePicker = document.getElementById('talk-date');
         if (!datePicker.value) datePicker.value = todayStr();
+
+        // Load shared filter from server
+        try {
+            const filterData = await api('/api/settings/talk-filter');
+            hiddenExtIds = filterData.hiddenIds || [];
+        } catch { hiddenExtIds = []; }
 
         if (!talkControlsReady) {
             setupTalkControls();
@@ -548,7 +554,14 @@
         document.getElementById('talk-refresh-btn').onclick = () => fetchTalkTime(datePicker.value);
         datePicker.onchange = () => fetchTalkTime(datePicker.value);
 
-        document.getElementById('talk-filter-btn').onclick = () => {
+        // Only admin can see and use the filter button
+        const filterBtn = document.getElementById('talk-filter-btn');
+        if (currentUser.role !== 'admin') {
+            filterBtn.style.display = 'none';
+            return;
+        }
+
+        filterBtn.onclick = () => {
             const panel = document.getElementById('talk-filter-panel');
             const isHidden = panel.style.display === 'none';
             panel.style.display = isHidden ? 'block' : 'none';
@@ -567,13 +580,26 @@
             document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = false);
         };
 
-        document.getElementById('talk-filter-apply').onclick = () => {
+        document.getElementById('talk-filter-apply').onclick = async () => {
+            const applyBtn = document.getElementById('talk-filter-apply');
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
             // Anything UNCHECKED gets added to the hidden list
             hiddenExtIds = [];
             document.querySelectorAll('#talk-filter-list input[type="checkbox"]').forEach(cb => {
                 if (!cb.checked) hiddenExtIds.push(cb.value);
             });
-            localStorage.setItem('talkHiddenIds', JSON.stringify(hiddenExtIds));
+
+            // Save to server so ALL users see the same filter
+            try {
+                await api('/api/settings/talk-filter', 'POST', { hiddenIds: hiddenExtIds });
+            } catch (err) {
+                alert('Failed to save filter: ' + err.message);
+            }
+
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = 'Apply Filter';
             document.getElementById('talk-filter-panel').style.display = 'none';
             renderLeaderboard();
         };
