@@ -56,67 +56,68 @@ input, textarea, select { font-family: var(--font); }
 
 .login-wrapper {
     width: 100%;
-    max-width: 700px;
+    max-width: 860px;
     padding: 20px;
 }
 
 .login-card {
     background: var(--white);
-    border-radius: var(--radius-lg);
+    border-radius: 16px;
     box-shadow: var(--shadow-lg);
-    overflow: visible;
+    overflow: hidden;
     text-align: center;
 }
 
 .accent-bar {
     height: 6px;
     background: var(--red);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .login-logos {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 40px;
-    padding: 52px 60px 28px;
+    gap: 48px;
+    padding: 60px 80px 32px;
 }
 
 .logo-name {
-    height: 80px;
+    height: 90px;
+    max-width: 320px;
     width: auto;
     object-fit: contain;
 }
 
 .logo-mascot {
-    height: 110px;
+    height: 120px;
+    max-width: 140px;
     width: auto;
     object-fit: contain;
 }
 
 .login-divider {
-    width: 80px;
+    width: 90px;
     height: 2px;
     background: var(--border);
-    margin: 0 auto 32px;
+    margin: 0 auto 36px;
 }
 
 .login-title {
-    font-size: 2.1rem;
+    font-size: 2.6rem;
     font-weight: 700;
     color: var(--dark);
     letter-spacing: -0.02em;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .login-subtitle {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     color: var(--medium);
-    margin-bottom: 40px;
+    margin-bottom: 44px;
 }
 
 .signin-container {
-    padding: 0 60px 36px;
+    padding: 0 80px 44px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -136,13 +137,12 @@ input, textarea, select { font-family: var(--font); }
 
 .login-footer {
     background: var(--light);
-    padding: 20px;
+    padding: 22px;
     border-top: 1px solid var(--border-light);
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .login-footer p {
-    font-size: 0.85rem;
+    font-size: 0.92rem;
     color: var(--medium);
 }
 
