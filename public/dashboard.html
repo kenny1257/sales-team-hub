@@ -29,6 +29,9 @@
                 <a href="#pricematch" class="nav-link" data-tab="pricematch">
                     <i class="fa-solid fa-tags"></i> Price Match
                 </a>
+                <a href="#dailytalk" class="nav-link" data-tab="dailytalk">
+                    <i class="fa-solid fa-comments"></i> Daily Talk
+                </a>
             </nav>
             <div class="header-right">
                 <img src="/assets/MA Mascot.png" alt="Mascot" class="header-mascot">
@@ -139,7 +142,12 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">When do you need this by?</label>
-                            <input type="date" class="form-control" id="req-needed-by" required>
+                            <select class="form-control" id="req-needed-by" required>
+                                <option value="" disabled selected>Select urgency...</option>
+                                <option value="ASAP">ASAP</option>
+                                <option value="End of the Week">End of the Week</option>
+                                <option value="No Rush">No Rush</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label">What does the customer need to move forward?</label>
@@ -168,6 +176,15 @@
                 <div id="admin-requests-grid" class="team-grid">
                     <!-- Dynamically filled -->
                 </div>
+            </div>
+        </section>
+
+        <!-- DAILY TALK TAB (placeholder) -->
+        <section id="tab-dailytalk" class="tab-content">
+            <div class="placeholder-section">
+                <i class="fa-solid fa-comments placeholder-icon"></i>
+                <h2>Daily Talk</h2>
+                <p>This section is coming soon.</p>
             </div>
         </section>
 

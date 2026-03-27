@@ -56,7 +56,7 @@ input, textarea, select { font-family: var(--font); }
 
 .login-wrapper {
     width: 100%;
-    max-width: 580px;
+    max-width: 700px;
     padding: 20px;
 }
 
@@ -69,61 +69,58 @@ input, textarea, select { font-family: var(--font); }
 }
 
 .accent-bar {
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-
-.accent-bar {
-    height: 5px;
+    height: 6px;
     background: var(--red);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .login-logos {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 32px;
-    padding: 40px 48px 20px;
+    gap: 40px;
+    padding: 52px 60px 28px;
 }
 
 .logo-name {
-    height: 64px;
+    height: 80px;
     width: auto;
     object-fit: contain;
 }
 
 .logo-mascot {
-    height: 90px;
+    height: 110px;
     width: auto;
     object-fit: contain;
 }
 
 .login-divider {
-    width: 60px;
+    width: 80px;
     height: 2px;
     background: var(--border);
-    margin: 0 auto 24px;
+    margin: 0 auto 32px;
 }
 
 .login-title {
-    font-size: 1.75rem;
+    font-size: 2.1rem;
     font-weight: 700;
     color: var(--dark);
     letter-spacing: -0.02em;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .login-subtitle {
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     color: var(--medium);
-    margin-bottom: 32px;
+    margin-bottom: 40px;
 }
 
 .signin-container {
-    padding: 0 40px 24px;
+    padding: 0 60px 36px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
 }
 
 .auth-error {
@@ -139,12 +136,13 @@ input, textarea, select { font-family: var(--font); }
 
 .login-footer {
     background: var(--light);
-    padding: 16px;
+    padding: 20px;
     border-top: 1px solid var(--border-light);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .login-footer p {
-    font-size: 0.78rem;
+    font-size: 0.85rem;
     color: var(--medium);
 }
 
@@ -916,10 +914,12 @@ textarea.form-control { min-height: 90px; }
 }
 
 @media (max-width: 500px) {
-    .login-logos { padding: 24px 20px 12px; }
-    .logo-name { height: 44px; }
-    .logo-mascot { height: 60px; }
-    .signin-container { padding: 0 20px 20px; }
+    .login-wrapper { max-width: 100%; }
+    .login-logos { padding: 28px 20px 16px; gap: 20px; }
+    .logo-name { height: 52px; }
+    .logo-mascot { height: 70px; }
+    .login-title { font-size: 1.5rem; }
+    .signin-container { padding: 0 20px 24px; }
     .main-content { padding: 20px 12px 40px; }
     .card { padding: 20px 16px; }
     .tip-icon { width: 56px; font-size: 1.4rem; }
