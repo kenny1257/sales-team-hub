@@ -370,6 +370,111 @@ input, textarea, select { font-family: var(--font); }
     border-radius: 20px;
 }
 
+/* ---- Home grid layout ---- */
+.home-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ---- Sales Goal Card ---- */
+.goal-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    border-top: 4px solid var(--red);
+}
+
+.goal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.goal-header i {
+    color: var(--red);
+    font-size: 1.2rem;
+}
+
+.goal-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.goal-current {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.goal-current-number {
+    display: block;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--dark);
+    line-height: 1.2;
+}
+
+.goal-current-label {
+    font-size: 0.8rem;
+    color: var(--medium);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.goal-bar-wrapper {
+    margin-bottom: 20px;
+}
+
+.goal-bar {
+    width: 100%;
+    height: 24px;
+    background: var(--light);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.goal-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--red-dark), var(--red));
+    border-radius: 12px;
+    transition: width 0.8s ease;
+    min-width: 0;
+}
+
+.goal-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--medium);
+    font-weight: 500;
+}
+
+.goal-percentage {
+    text-align: center;
+    padding-top: 4px;
+}
+
+.goal-pct-number {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--red);
+    line-height: 1.2;
+}
+
+.goal-pct-label {
+    font-size: 0.8rem;
+    color: var(--medium);
+    font-weight: 500;
+}
+
 /* ---- Stats row (admin home) ---- */
 .stats-row {
     display: grid;
@@ -1114,6 +1219,7 @@ textarea.form-control { min-height: 90px; }
     .user-name { display: none; }
     .stats-row { grid-template-columns: 1fr; }
     .team-grid { grid-template-columns: 1fr; }
+    .home-grid { grid-template-columns: 1fr; }
     .talk-header { flex-direction: column; }
     .talk-controls { flex-wrap: wrap; }
     .talk-totals { grid-template-columns: 1fr; }

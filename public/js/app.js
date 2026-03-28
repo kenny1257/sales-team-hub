@@ -83,6 +83,17 @@
             document.getElementById('sales-tip-text').textContent = 'Could not load tip.';
         }
 
+        // Sales goal
+        try {
+            const goalData = await api('/api/salesgoal');
+            document.getElementById('goal-current').textContent = goalData.currentVolume.toLocaleString();
+            document.getElementById('goal-target-label').textContent = goalData.goal.toLocaleString();
+            document.getElementById('goal-pct').textContent = goalData.percentageRaw + '%';
+            document.getElementById('goal-bar-fill').style.width = Math.min(goalData.percentageRaw, 100) + '%';
+        } catch {
+            document.getElementById('goal-current').textContent = '—';
+        }
+
         // Admin stats
         if (currentUser.role === 'admin') {
             document.getElementById('home-admin-panel').style.display = 'block';

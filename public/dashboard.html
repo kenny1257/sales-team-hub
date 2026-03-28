@@ -56,14 +56,46 @@
                 <p class="welcome-date" id="current-date"></p>
             </div>
 
-            <div class="sales-tip-card">
-                <div class="tip-icon">
-                    <i class="fa-solid fa-lightbulb"></i>
+            <div class="home-grid">
+                <!-- Left: Sales Tip -->
+                <div class="home-left">
+                    <div class="sales-tip-card">
+                        <div class="tip-icon">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <div class="tip-body">
+                            <h3 class="tip-label">Sales Tip of the Day</h3>
+                            <p class="tip-text" id="sales-tip-text">Loading...</p>
+                            <span class="tip-category" id="sales-tip-category"></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="tip-body">
-                    <h3 class="tip-label">Sales Tip of the Day</h3>
-                    <p class="tip-text" id="sales-tip-text">Loading...</p>
-                    <span class="tip-category" id="sales-tip-category"></span>
+
+                <!-- Right: Sales Goal -->
+                <div class="home-right">
+                    <div class="goal-card">
+                        <div class="goal-header">
+                            <i class="fa-solid fa-bullseye"></i>
+                            <h3>Monthly Sales Goal</h3>
+                        </div>
+                        <div class="goal-current">
+                            <span class="goal-current-number" id="goal-current">—</span>
+                            <span class="goal-current-label">Current Volume</span>
+                        </div>
+                        <div class="goal-bar-wrapper">
+                            <div class="goal-bar">
+                                <div class="goal-bar-fill" id="goal-bar-fill" style="width:0%"></div>
+                            </div>
+                            <div class="goal-bar-labels">
+                                <span>0</span>
+                                <span id="goal-target-label">—</span>
+                            </div>
+                        </div>
+                        <div class="goal-percentage">
+                            <span class="goal-pct-number" id="goal-pct">0%</span>
+                            <span class="goal-pct-label">of monthly goal</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
