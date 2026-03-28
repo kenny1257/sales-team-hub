@@ -11,7 +11,7 @@ module.exports = async function handler(req, res) {
     const { rows: userRows } = await sql`SELECT role FROM users WHERE id = ${userId}`;
     if (!userRows[0] || userRows[0].role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
 
-    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
     const { rows } = await sql`
         SELECT c.*, u.name, u.email, u.picture FROM checkins c

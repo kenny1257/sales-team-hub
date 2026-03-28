@@ -11,7 +11,7 @@ module.exports = async function handler(req, res) {
     if (!working_on || !goal) return res.status(400).json({ error: 'All fields are required' });
 
     await initDb();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
     const now = new Date().toISOString();
 
     // Check if already checked in

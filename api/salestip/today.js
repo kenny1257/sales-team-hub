@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
     }
 
     // Consistent daily pick based on date hash
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
     let hash = 0;
     for (let i = 0; i < today.length; i++) {
         hash = ((hash << 5) - hash) + today.charCodeAt(i);

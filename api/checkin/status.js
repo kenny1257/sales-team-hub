@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     await initDb();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
     const { rows } = await sql`
         SELECT c.*, u.name, u.picture FROM checkins c

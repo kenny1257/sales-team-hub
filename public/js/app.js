@@ -28,13 +28,13 @@
         document.getElementById('user-avatar').src = currentUser.picture || '';
         document.getElementById('user-name').textContent = currentUser.name;
 
-        const hour = new Date().getHours();
+        const hour = parseInt(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Chicago' }));
         let greeting = 'Good evening';
         if (hour < 12) greeting = 'Good morning';
         else if (hour < 17) greeting = 'Good afternoon';
         document.getElementById('welcome-msg').textContent = `${greeting}, ${currentUser.name.split(' ')[0]}!`;
 
-        const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Chicago' };
         document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', opts);
     }
 
@@ -716,13 +716,13 @@
     }
 
     function todayStr() {
-        return new Date().toISOString().split('T')[0];
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
     }
 
     function formatTime(isoStr) {
         if (!isoStr) return '—';
         const d = new Date(isoStr);
-        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' });
     }
 
     function esc(str) {

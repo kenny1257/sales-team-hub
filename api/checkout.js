@@ -11,7 +11,7 @@ module.exports = async function handler(req, res) {
     if (!accomplished || !went_well_poorly) return res.status(400).json({ error: 'All fields are required' });
 
     await initDb();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
     const now = new Date().toISOString();
 
     const existing = await sql`SELECT * FROM checkins WHERE user_id = ${userId} AND date = ${today}`;
