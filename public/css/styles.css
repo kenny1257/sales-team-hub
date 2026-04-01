@@ -901,6 +901,10 @@ textarea.form-control { min-height: 90px; }
     border-left-color: var(--amber);
 }
 
+.request-card.type-az-quote {
+    border-left-color: var(--blue);
+}
+
 .request-meta {
     display: flex;
     align-items: center;
@@ -951,6 +955,18 @@ textarea.form-control { min-height: 90px; }
     color: var(--amber);
 }
 
+.request-type-badge.az-quote {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+.request-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .request-fields {
     display: flex;
     flex-direction: column;
@@ -971,6 +987,121 @@ textarea.form-control { min-height: 90px; }
     transition: background var(--transition);
 }
 .request-pdf-link:hover { background: var(--border); }
+
+/* -- Request status badges -- */
+.status-badge.status-pending {
+    background: var(--amber-bg);
+    color: var(--amber);
+}
+
+.status-badge.status-completed {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.status-badge.status-on_pause {
+    background: var(--gray-badge-bg);
+    color: var(--gray-badge);
+}
+
+/* -- Multi-file list -- */
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.file-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--light);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+}
+
+.file-list-item i {
+    color: var(--red);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.file-list-name {
+    flex: 1;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-list-size {
+    font-size: 0.75rem;
+    color: var(--medium);
+    flex-shrink: 0;
+}
+
+.file-remove-btn {
+    color: var(--medium);
+    font-size: 0.85rem;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color var(--transition), background var(--transition);
+    flex-shrink: 0;
+}
+.file-remove-btn:hover {
+    color: var(--red);
+    background: var(--red-light);
+}
+
+/* -- Request files display -- */
+.request-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+/* -- Admin status control -- */
+.admin-status-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-light);
+}
+
+.admin-status-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--medium);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-select {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--dark);
+    background: var(--white);
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+.status-select:focus {
+    outline: none;
+    border-color: var(--red);
+}
+.status-select:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
 
 /* -- Success message -- */
 .success-message {

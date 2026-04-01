@@ -58,6 +58,7 @@
     function onTabChange(tab) {
         if (tab === 'home') loadHome();
         if (tab === 'checkin') loadCheckin();
+        if (tab === 'quote') loadQuoteRequest();
         if (tab === 'pricematch') loadPriceMatch();
         if (tab === 'dailytalk') loadDailyTalk();
     }
@@ -332,13 +333,186 @@
         return html;
     }
 
+    // ================ MULTI-FILE UPLOAD HELPERS ================
+    // Each section gets its own file array
+    let pmFiles = [];
+    let quoteFiles = [];
+
+    function setupMultiFileUpload(zoneId, inputId, listId, fileArray, fileArrayName) {
+        const zone = document.getElementById(zoneId);
+        const input = document.getElementById(inputId);
+        if (!zone || !input) return;
+
+        // Click-to-browse
+        input.addEventListener('change', () => {
+            for (const f of input.files) addFileToArray(f, fileArrayName, listId);
+            input.value = '';
+        });
+
+        // Drag & drop
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            for (const f of e.dataTransfer.files) addFileToArray(f, fileArrayName, listId);
+        });
+    }
+
+    function addFileToArray(file, arrayName, listId) {
+        if (!file.type.includes('pdf')) {
+            alert('Please upload PDF files only.');
+            return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            alert('Each file must be under 3MB.');
+            return;
+        }
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        // Prevent duplicates by name
+        if (arr.some(f => f.name === file.name && f.size === file.size)) return;
+        arr.push(file);
+        renderFileList(arrayName, listId);
+    }
+
+    function removeFileFromArray(index, arrayName, listId) {
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        arr.splice(index, 1);
+        if (arrayName === 'pm') pmFiles = arr;
+        else quoteFiles = arr;
+        renderFileList(arrayName, listId);
+    }
+
+    function renderFileList(arrayName, listId) {
+        const list = document.getElementById(listId);
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        if (!list) return;
+        if (arr.length === 0) {
+            list.innerHTML = '';
+            return;
+        }
+        list.innerHTML = arr.map((f, i) => `
+            <div class="file-list-item">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span class="file-list-name">${esc(f.name)}</span>
+                <span class="file-list-size">${(f.size / 1024).toFixed(0)} KB</span>
+                <button type="button" class="file-remove-btn" data-index="${i}" data-array="${arrayName}" data-list="${listId}">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.file-remove-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                removeFileFromArray(parseInt(btn.dataset.index), btn.dataset.array, btn.dataset.list);
+            });
+        });
+    }
+
+    async function filesToBase64Array(fileArray) {
+        const results = [];
+        for (const file of fileArray) {
+            const data = await fileToBase64(file);
+            results.push({ data, name: file.name });
+        }
+        return results;
+    }
+
+    // ================ ARIZONA QUOTE REQUEST ================
+    let quoteFormReady = false;
+
+    function loadQuoteRequest() {
+        if (!quoteFormReady) {
+            setupMultiFileUpload('quote-file-upload-zone', 'quote-files-input', 'quote-file-list', quoteFiles, 'quote');
+            const form = document.getElementById('quote-form');
+            if (form) form.addEventListener('submit', handleQuoteSubmit);
+            quoteFormReady = true;
+        }
+        loadMyQuotes();
+
+        if (currentUser.role === 'admin') {
+            document.getElementById('admin-quotes-panel').style.display = 'block';
+            loadAdminQuotes();
+        }
+    }
+
+    async function handleQuoteSubmit(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        try {
+            const files = await filesToBase64Array(quoteFiles);
+            await api('/api/request', 'POST', {
+                type: 'arizona_quote',
+                needed_by: document.getElementById('quote-needed-by').value,
+                customer_needs: document.getElementById('quote-special-requests').value.trim(),
+                files: files,
+            });
+
+            document.getElementById('quote-form-area').innerHTML = `
+                <div class="card">
+                    <div class="success-message">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <h3>Quote Request Submitted</h3>
+                        <p>Your Arizona quote request has been sent to your manager.</p>
+                        <button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Submit Another</button>
+                    </div>
+                </div>
+            `;
+            quoteFiles = [];
+            loadMyQuotes();
+            if (currentUser.role === 'admin') loadAdminQuotes();
+        } catch (err) {
+            alert(err.message || 'Submission failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request';
+        }
+    }
+
+    async function loadMyQuotes() {
+        const area = document.getElementById('my-quotes-area');
+        if (!area) return;
+        try {
+            const data = await api('/api/request/mine');
+            const quotes = data.requests.filter(r => r.type === 'arizona_quote');
+            if (quotes.length === 0) { area.innerHTML = ''; return; }
+            area.innerHTML = `
+                <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Quote Requests</h3>
+                <div class="team-grid">${quotes.map(r => renderRequestCard(r, false)).join('')}</div>
+            `;
+        } catch { area.innerHTML = ''; }
+    }
+
+    async function loadAdminQuotes() {
+        const grid = document.getElementById('admin-quotes-grid');
+        if (!grid) return;
+        grid.innerHTML = '<p class="text-muted">Loading...</p>';
+        try {
+            const data = await api('/api/admin/requests');
+            const quotes = data.requests.filter(r => r.type === 'arizona_quote');
+            if (quotes.length === 0) {
+                grid.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-inbox"></i>No quote requests submitted yet.</div>';
+                return;
+            }
+            grid.innerHTML = quotes.map(r => renderRequestCard(r, true)).join('');
+            attachStatusListeners(grid);
+        } catch {
+            grid.innerHTML = '<p class="text-muted">Could not load quote requests.</p>';
+        }
+    }
+
     // ================ PRICE MATCH / DISCOUNT ================
     let currentRequestType = 'price_match';
-    let selectedFile = null;
+    let pmFormReady = false;
 
     function loadPriceMatch() {
         setupTypeToggle();
-        setupFileUpload();
+        if (!pmFormReady) {
+            setupMultiFileUpload('pm-file-upload-zone', 'pm-files-input', 'pm-file-list', pmFiles, 'pm');
+            pmFormReady = true;
+        }
         setupRequestForm();
         loadMyRequests();
 
@@ -373,51 +547,6 @@
         }
     }
 
-    function setupFileUpload() {
-        const zone = document.getElementById('file-upload-zone');
-        const input = document.getElementById('req-pdf');
-        if (!zone || !input) return;
-
-        input.addEventListener('change', () => {
-            if (input.files.length > 0) handleFileSelect(input.files[0]);
-        });
-
-        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-        zone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            zone.classList.remove('drag-over');
-            if (e.dataTransfer.files.length > 0) {
-                handleFileSelect(e.dataTransfer.files[0]);
-                input.files = e.dataTransfer.files;
-            }
-        });
-    }
-
-    function handleFileSelect(file) {
-        const zone = document.getElementById('file-upload-zone');
-        if (!file.type.includes('pdf')) {
-            alert('Please upload a PDF file.');
-            return;
-        }
-        if (file.size > 3 * 1024 * 1024) {
-            alert('File must be under 3MB.');
-            return;
-        }
-        selectedFile = file;
-        zone.classList.add('has-file');
-        zone.innerHTML = `
-            <i class="fa-solid fa-file-pdf"></i>
-            <p>File selected</p>
-            <p class="file-name">${esc(file.name)}</p>
-            <p class="file-hint">Click to change file</p>
-            <input type="file" id="req-pdf" accept=".pdf">
-        `;
-        document.getElementById('req-pdf').addEventListener('change', (e) => {
-            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
-        });
-    }
-
     function setupRequestForm() {
         const form = document.getElementById('request-form');
         if (!form) return;
@@ -431,25 +560,16 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
 
-        let pdfData = null;
-        let pdfFilename = null;
-
-        if (selectedFile) {
-            pdfData = await fileToBase64(selectedFile);
-            pdfFilename = selectedFile.name;
-        }
-
         try {
+            const files = await filesToBase64Array(pmFiles);
             await api('/api/request', 'POST', {
                 type: currentRequestType,
                 manufacturer: document.getElementById('req-manufacturer').value.trim(),
                 needed_by: document.getElementById('req-needed-by').value,
                 customer_needs: document.getElementById('req-customer-needs').value.trim(),
-                pdf_data: pdfData,
-                pdf_filename: pdfFilename,
+                files: files,
             });
 
-            // Show success
             document.getElementById('request-form-area').innerHTML = `
                 <div class="card">
                     <div class="success-message">
@@ -460,7 +580,7 @@
                     </div>
                 </div>
             `;
-            selectedFile = null;
+            pmFiles = [];
             loadMyRequests();
             if (currentUser.role === 'admin') loadAdminRequests();
         } catch (err) {
@@ -475,13 +595,11 @@
         if (!area) return;
         try {
             const data = await api('/api/request/mine');
-            if (data.requests.length === 0) {
-                area.innerHTML = '';
-                return;
-            }
+            const reqs = data.requests.filter(r => r.type !== 'arizona_quote');
+            if (reqs.length === 0) { area.innerHTML = ''; return; }
             area.innerHTML = `
                 <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Requests</h3>
-                <div class="team-grid">${data.requests.map(r => renderRequestCard(r, false)).join('')}</div>
+                <div class="team-grid">${reqs.map(r => renderRequestCard(r, false)).join('')}</div>
             `;
         } catch { area.innerHTML = ''; }
     }
@@ -492,22 +610,44 @@
         grid.innerHTML = '<p class="text-muted">Loading...</p>';
         try {
             const data = await api('/api/admin/requests');
-            if (data.requests.length === 0) {
+            const reqs = data.requests.filter(r => r.type !== 'arizona_quote');
+            if (reqs.length === 0) {
                 grid.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-inbox"></i>No requests submitted yet.</div>';
                 return;
             }
-            grid.innerHTML = data.requests.map(r => renderRequestCard(r, true)).join('');
+            grid.innerHTML = reqs.map(r => renderRequestCard(r, true)).join('');
+            attachStatusListeners(grid);
         } catch {
             grid.innerHTML = '<p class="text-muted">Could not load requests.</p>';
         }
     }
 
+    // ================ REQUEST CARD (shared for both sections) ================
     function renderRequestCard(r, showUser) {
         const isPM = r.type === 'price_match';
-        const typeLabel = isPM ? 'Price Match' : 'Discount Request';
-        const typeBadgeClass = isPM ? 'price-match' : 'discount';
-        const cardClass = isPM ? '' : ' type-discount';
+        const isQuote = r.type === 'arizona_quote';
+        const isDiscount = r.type === 'discount';
+
+        let typeLabel, typeBadgeClass, cardBorderClass;
+        if (isPM) {
+            typeLabel = 'Price Match';
+            typeBadgeClass = 'price-match';
+            cardBorderClass = '';
+        } else if (isDiscount) {
+            typeLabel = 'Discount Request';
+            typeBadgeClass = 'discount';
+            cardBorderClass = ' type-discount';
+        } else {
+            typeLabel = 'AZ Quote Request';
+            typeBadgeClass = 'az-quote';
+            cardBorderClass = ' type-az-quote';
+        }
+
         const date = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        // Status badge
+        const status = r.status || 'pending';
+        const statusInfo = getStatusInfo(status);
 
         const userHtml = showUser ? `
             <div class="request-user">
@@ -518,23 +658,93 @@
                 </div>
             </div>` : `<div class="request-date" style="font-size:0.8rem; color:var(--medium);">${date}</div>`;
 
-        const pdfHtml = r.pdf_filename
-            ? `<a href="/api/request/pdf/${r.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(r.pdf_filename)}</a>`
-            : '<span class="text-muted" style="font-size:0.82rem;">No PDF attached</span>';
+        // Files section — new multi-file format
+        let filesHtml = '';
+        if (r.files && r.files.length > 0) {
+            filesHtml = r.files.map(f =>
+                `<a href="/api/request/file/${f.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(f.file_name)}</a>`
+            ).join('');
+        }
+        // Legacy single file fallback
+        else if (r.pdf_filename) {
+            filesHtml = `<a href="/api/request/pdf/${r.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(r.pdf_filename)}</a>`;
+        } else {
+            filesHtml = '<span class="text-muted" style="font-size:0.82rem;">No documents attached</span>';
+        }
 
-        return `
-        <div class="request-card${cardClass}">
-            <div class="request-meta">
-                ${userHtml}
-                <span class="request-type-badge ${typeBadgeClass}">${typeLabel}</span>
-            </div>
-            <div class="request-fields">
+        // Admin status control
+        let adminStatusHtml = '';
+        if (showUser && currentUser.role === 'admin') {
+            adminStatusHtml = `
+                <div class="admin-status-control">
+                    <label class="admin-status-label">Status:</label>
+                    <select class="status-select" data-request-id="${r.id}">
+                        <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="on_pause" ${status === 'on_pause' ? 'selected' : ''}>On Pause</option>
+                        <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                </div>`;
+        }
+
+        // Build fields based on type
+        let fieldsHtml = '';
+        if (isQuote) {
+            fieldsHtml = `
+                <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
+                <div><div class="summary-label">Special Requests</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
+                <div><div class="summary-label">Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
+        } else {
+            fieldsHtml = `
                 <div><div class="summary-label">Manufacturer</div><div class="summary-value">${esc(r.manufacturer)}</div></div>
                 <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
                 <div><div class="summary-label">Customer Needs</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
-                <div><div class="summary-label">Document</div>${pdfHtml}</div>
+                <div><div class="summary-label">Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
+        }
+
+        return `
+        <div class="request-card${cardBorderClass}">
+            <div class="request-meta">
+                ${userHtml}
+                <div class="request-badges">
+                    <span class="request-type-badge ${typeBadgeClass}">${typeLabel}</span>
+                    <span class="status-badge status-${status}"><i class="fa-solid ${statusInfo.icon}"></i> ${statusInfo.label}</span>
+                </div>
             </div>
+            <div class="request-fields">
+                ${fieldsHtml}
+            </div>
+            ${adminStatusHtml}
         </div>`;
+    }
+
+    function getStatusInfo(status) {
+        switch (status) {
+            case 'completed': return { label: 'Completed', icon: 'fa-circle-check' };
+            case 'on_pause': return { label: 'On Pause', icon: 'fa-pause' };
+            default: return { label: 'Pending', icon: 'fa-clock' };
+        }
+    }
+
+    function attachStatusListeners(container) {
+        container.querySelectorAll('.status-select').forEach(select => {
+            select.addEventListener('change', async (e) => {
+                const requestId = e.target.dataset.requestId;
+                const newStatus = e.target.value;
+                e.target.disabled = true;
+                try {
+                    await api('/api/request/status', 'POST', { id: parseInt(requestId), status: newStatus });
+                    // Update the badge in the same card
+                    const card = e.target.closest('.request-card');
+                    const badge = card.querySelector('.status-badge');
+                    const info = getStatusInfo(newStatus);
+                    badge.className = `status-badge status-${newStatus}`;
+                    badge.innerHTML = `<i class="fa-solid ${info.icon}"></i> ${info.label}`;
+                } catch (err) {
+                    alert('Failed to update status: ' + (err.message || 'Unknown error'));
+                }
+                e.target.disabled = false;
+            });
+        });
     }
 
     // ================ DAILY TALK ================

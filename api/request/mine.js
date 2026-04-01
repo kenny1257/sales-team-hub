@@ -17,5 +17,13 @@ module.exports = async function handler(req, res) {
         LIMIT 20
     `;
 
+    // Fetch files for each request
+    for (const row of rows) {
+        const { rows: fileRows } = await sql`
+            SELECT id, file_name FROM request_files WHERE request_id = ${row.id}
+        `;
+        row.files = fileRows;
+    }
+
     res.json({ requests: rows });
 };
