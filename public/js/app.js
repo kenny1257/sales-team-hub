@@ -364,8 +364,8 @@
             alert('Please upload PDF files only.');
             return;
         }
-        if (file.size > 3 * 1024 * 1024) {
-            alert('Each file must be under 3MB.');
+        if (file.size > 15 * 1024 * 1024) {
+            alert('Each file must be under 15MB.');
             return;
         }
         const arr = arrayName === 'pm' ? pmFiles : quoteFiles;

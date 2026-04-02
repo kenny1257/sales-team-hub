@@ -1,6 +1,10 @@
 const { sql, initDb } = require('../../lib/db');
 const { getUserId } = require('../../lib/auth');
 
+module.exports.config = {
+    api: { bodyParser: { sizeLimit: '25mb' } }
+};
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
