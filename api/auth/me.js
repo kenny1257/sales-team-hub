@@ -8,12 +8,8 @@ module.exports = async function handler(req, res) {
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
     await initDb();
-
-    const { rows } = await sql`
-        SELECT id, name, email, picture, role FROM users WHERE id = ${userId}
-    `;
-
-    if (rows.length === 0) return res.status(401).json({ error: 'User not found' });
+    const { rows } = await sql`SELECT id, name, email, picture, role FROM users WHERE id = ${userId}`;
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
     res.json({ user: rows[0] });
 };

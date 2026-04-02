@@ -1,24 +1,11 @@
 /* ==============================================
-   Metal America Media Library - App
+   Metal America Sales Hub - Dashboard App
    ============================================== */
+
 (function () {
     let currentUser = null;
-    let allMedia = [];
-    let currentFilter = {};
-    let uploadFile = null;
 
-    const BUILDING_TYPES = ['Carport','Garage','Storage','Gable','Shop','Barndo','Home','RV Cover','Metal Building','Concrete'];
-    const TYPE_ICONS = {
-        Carport:'fa-warehouse', Garage:'fa-warehouse', Storage:'fa-box-archive',
-        Gable:'fa-house', Shop:'fa-screwdriver-wrench', Barndo:'fa-house-chimney',
-        Home:'fa-house-user', 'RV Cover':'fa-caravan', 'Metal Building':'fa-building', Concrete:'fa-cubes'
-    };
-    const COLOR_MAP = {
-        Red:'#dc2626', Gray:'#6b7280', White:'#e5e7eb', Tan:'#d2b48c',
-        Blue:'#2563eb', Green:'#16a34a', Brown:'#92400e', Black:'#1f2937'
-    };
-
-    // ---- Init ----
+    // ---- Bootstrap ----
     init();
 
     async function init() {
@@ -29,493 +16,911 @@
             window.location.href = '/index.html';
             return;
         }
+
         renderUserInfo();
-        setupEventListeners();
-        loadMedia();
+        setupNav();
+        setupLogout();
+        loadHome();
     }
 
-    // ================ USER ================
+    // ================ USER INFO ================
     function renderUserInfo() {
-        const avatar = document.getElementById('user-avatar');
-        if (currentUser.picture) {
-            avatar.src = currentUser.picture;
-        }
-        // Show upload button for admins
-        if (currentUser.role === 'admin') {
-            document.getElementById('upload-btn').style.display = 'inline-flex';
-        }
+        document.getElementById('user-avatar').src = currentUser.picture || '';
+        document.getElementById('user-name').textContent = currentUser.name;
+
+        const hour = parseInt(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Chicago' }));
+        let greeting = 'Good evening';
+        if (hour < 12) greeting = 'Good morning';
+        else if (hour < 17) greeting = 'Good afternoon';
+        document.getElementById('welcome-msg').textContent = `${greeting}, ${currentUser.name.split(' ')[0]}!`;
+
+        const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Chicago' };
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', opts);
     }
 
-    // ================ EVENTS ================
-    function setupEventListeners() {
-        // Logout
+    // ================ NAVIGATION ================
+    function setupNav() {
+        const links = document.querySelectorAll('.nav-link');
+        links.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tab = link.dataset.tab;
+                links.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                const el = document.getElementById('tab-' + tab);
+                if (el) el.classList.add('active');
+                onTabChange(tab);
+            });
+        });
+    }
+
+    function onTabChange(tab) {
+        if (tab === 'home') loadHome();
+        if (tab === 'checkin') loadCheckin();
+        if (tab === 'quote') loadQuoteRequest();
+        if (tab === 'pricematch') loadPriceMatch();
+        if (tab === 'dailytalk') loadDailyTalk();
+    }
+
+    // ================ LOGOUT ================
+    function setupLogout() {
         document.getElementById('logout-btn').addEventListener('click', async () => {
             await fetch('/api/auth/logout', { method: 'POST' });
             window.location.href = '/index.html';
         });
+    }
 
-        // Sidebar
-        document.getElementById('sidebar').addEventListener('click', (e) => {
-            const item = e.target.closest('.sidebar-item[data-filter]');
-            if (!item) return;
-            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            const filter = item.dataset.filter;
-            const label = item.textContent.replace(/\d+/g, '').trim();
-            document.getElementById('toolbar-title').textContent = label;
-            applySidebarFilter(filter);
-        });
+    // ================ HOME TAB ================
+    async function loadHome() {
+        // Sales tip
+        try {
+            const data = await api('/api/salestip/today');
+            document.getElementById('sales-tip-text').textContent = data.tip.tip_text;
+            const cat = document.getElementById('sales-tip-category');
+            cat.textContent = data.tip.category || '';
+            cat.style.display = data.tip.category ? 'inline-block' : 'none';
+        } catch {
+            document.getElementById('sales-tip-text').textContent = 'Could not load tip.';
+        }
 
-        // Search
-        let searchTimeout;
-        document.getElementById('search-input').addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                currentFilter.search = e.target.value.trim() || undefined;
-                loadMedia();
-            }, 300);
-        });
+        // Sales goal
+        try {
+            const goalData = await api('/api/salesgoal');
+            document.getElementById('goal-current').textContent = goalData.currentVolume.toLocaleString();
+            document.getElementById('goal-target-label').textContent = goalData.goal.toLocaleString();
+            document.getElementById('goal-pct').textContent = goalData.percentageRaw + '%';
+            document.getElementById('goal-bar-fill').style.width = Math.min(goalData.percentageRaw, 100) + '%';
+        } catch {
+            document.getElementById('goal-current').textContent = '—';
+        }
 
-        // Color & sort filters
-        document.getElementById('filter-color').addEventListener('change', (e) => {
-            currentFilter.color = e.target.value || undefined;
-            loadMedia();
-        });
-        document.getElementById('filter-sort').addEventListener('change', (e) => {
-            currentFilter.sort = e.target.value || undefined;
-            loadMedia();
-        });
+        // Admin stats
+        if (currentUser.role === 'admin') {
+            document.getElementById('home-admin-panel').style.display = 'block';
+            try {
+                const [teamData, checkinData] = await Promise.all([
+                    api('/api/admin/team'),
+                    api('/api/admin/checkins')
+                ]);
+                const total = teamData.members.length;
+                const checkedIn = checkinData.checkins.filter(c => !c.check_out_time).length;
+                const checkedOut = checkinData.checkins.filter(c => c.check_out_time).length;
+                document.getElementById('stat-checked-in').textContent = checkedIn;
+                document.getElementById('stat-checked-out').textContent = checkedOut;
+                document.getElementById('stat-not-in').textContent = Math.max(0, total - checkedIn - checkedOut);
+            } catch { /* ignore */ }
+        }
+    }
 
-        // View toggle
-        document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                const grid = document.getElementById('media-grid');
-                if (btn.dataset.view === 'list') grid.classList.add('list-view');
-                else grid.classList.remove('list-view');
+    // ================ CHECK-IN / CHECK-OUT ================
+    async function loadCheckin() {
+        const area = document.getElementById('checkin-area');
+        area.innerHTML = '<p class="text-muted">Loading...</p>';
+
+        try {
+            const data = await api('/api/checkin/status');
+            renderCheckinState(data.checkin);
+        } catch {
+            area.innerHTML = '<p class="text-muted">Could not load check-in status.</p>';
+        }
+
+        // Admin panel
+        if (currentUser.role === 'admin') {
+            document.getElementById('admin-team-dashboard').style.display = 'block';
+            const picker = document.getElementById('admin-date-picker');
+            if (!picker.value) picker.value = todayStr();
+            picker.onchange = () => loadTeamCheckins(picker.value);
+            loadTeamCheckins(picker.value);
+        }
+    }
+
+    function renderCheckinState(checkin) {
+        const area = document.getElementById('checkin-area');
+
+        // State 1: Not checked in
+        if (!checkin) {
+            area.innerHTML = `
+                <div class="card">
+                    <h3 class="card-title"><i class="fa-solid fa-arrow-right-to-bracket"></i> Check In</h3>
+                    <form id="checkin-form">
+                        <div class="form-group">
+                            <label class="form-label">What are you working on today?</label>
+                            <textarea class="form-control" id="ci-working" placeholder="Describe your tasks for today..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">What is your goal for today?</label>
+                            <textarea class="form-control" id="ci-goal" placeholder="What do you want to accomplish?" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Check In</button>
+                    </form>
+                </div>
+            `;
+            document.getElementById('checkin-form').addEventListener('submit', handleCheckin);
+            return;
+        }
+
+        // State 2: Checked in but not checked out
+        if (!checkin.check_out_time) {
+            area.innerHTML = `
+                <div class="card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                        <h3 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-clipboard-check"></i> Today's Check-In</h3>
+                        <span class="status-badge checked-in"><i class="fa-solid fa-circle"></i> Checked In</span>
+                    </div>
+                    <div class="summary-section">
+                        <div class="summary-label">Checked in at</div>
+                        <div class="summary-time">${formatTime(checkin.check_in_time)}</div>
+                    </div>
+                    <div class="summary-section">
+                        <div class="summary-label">Working on</div>
+                        <div class="summary-value">${esc(checkin.working_on)}</div>
+                    </div>
+                    <div class="summary-section">
+                        <div class="summary-label">Goal</div>
+                        <div class="summary-value">${esc(checkin.goal)}</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title"><i class="fa-solid fa-arrow-right-from-bracket"></i> Check Out</h3>
+                    <form id="checkout-form">
+                        <div class="form-group">
+                            <label class="form-label">What did you get done today?</label>
+                            <textarea class="form-control" id="co-accomplished" placeholder="Summarize what you accomplished..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">What went well or poorly?</label>
+                            <textarea class="form-control" id="co-reflection" placeholder="Reflect on your day..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-dark"><i class="fa-solid fa-check"></i> Check Out</button>
+                    </form>
+                </div>
+            `;
+            document.getElementById('checkout-form').addEventListener('submit', handleCheckout);
+            return;
+        }
+
+        // State 3: Fully completed
+        area.innerHTML = `
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <h3 class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-clipboard-check"></i> Today's Summary</h3>
+                    <span class="status-badge checked-out"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-label">Checked in at</div>
+                    <div class="summary-time">${formatTime(checkin.check_in_time)}</div>
+                </div>
+                <div class="summary-section">
+                    <div class="summary-label">Working on</div>
+                    <div class="summary-value">${esc(checkin.working_on)}</div>
+                </div>
+                <div class="summary-section">
+                    <div class="summary-label">Goal</div>
+                    <div class="summary-value">${esc(checkin.goal)}</div>
+                </div>
+
+                <hr style="border:none; border-top:1px solid #e0e0e0; margin:20px 0;">
+
+                <div class="summary-section">
+                    <div class="summary-label">Checked out at</div>
+                    <div class="summary-time">${formatTime(checkin.check_out_time)}</div>
+                </div>
+                <div class="summary-section">
+                    <div class="summary-label">Accomplished</div>
+                    <div class="summary-value">${esc(checkin.accomplished)}</div>
+                </div>
+                <div class="summary-section">
+                    <div class="summary-label">Reflection</div>
+                    <div class="summary-value">${esc(checkin.went_well_poorly)}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function handleCheckin(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        try {
+            const data = await api('/api/checkin', 'POST', {
+                working_on: document.getElementById('ci-working').value.trim(),
+                goal: document.getElementById('ci-goal').value.trim(),
             });
+            renderCheckinState(data.checkin);
+        } catch (err) {
+            alert(err.message || 'Check-in failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Check In';
+        }
+    }
+
+    async function handleCheckout(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        try {
+            const data = await api('/api/checkout', 'POST', {
+                accomplished: document.getElementById('co-accomplished').value.trim(),
+                went_well_poorly: document.getElementById('co-reflection').value.trim(),
+            });
+            renderCheckinState(data.checkin);
+        } catch (err) {
+            alert(err.message || 'Check-out failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Check Out';
+        }
+    }
+
+    // ================ ADMIN - TEAM CHECKINS ================
+    async function loadTeamCheckins(date) {
+        const grid = document.getElementById('team-checkins-grid');
+        grid.innerHTML = '<p class="text-muted">Loading team data...</p>';
+
+        try {
+            const data = await api(`/api/admin/checkins?date=${date}`);
+            if (data.checkins.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-data-message" style="grid-column:1/-1;">
+                        <i class="fa-solid fa-inbox"></i>
+                        No check-ins recorded for this date.
+                    </div>`;
+                return;
+            }
+            grid.innerHTML = data.checkins.map(c => renderMemberCard(c)).join('');
+        } catch {
+            grid.innerHTML = '<p class="text-muted">Could not load team data.</p>';
+        }
+    }
+
+    function renderMemberCard(c) {
+        const isComplete = !!c.check_out_time;
+        const badgeClass = isComplete ? 'checked-out' : 'checked-in';
+        const badgeText = isComplete ? 'Completed' : 'Working';
+        const badgeIcon = isComplete ? 'fa-circle-check' : 'fa-circle';
+
+        let html = `
+        <div class="member-card">
+            <div class="member-header">
+                <img src="${c.picture || ''}" alt="" class="member-avatar">
+                <div class="member-info">
+                    <div class="member-name">${esc(c.name)}</div>
+                    <div class="member-email">${esc(c.email)}</div>
+                </div>
+                <span class="status-badge ${badgeClass}"><i class="fa-solid ${badgeIcon}"></i> ${badgeText}</span>
+            </div>
+            <div class="member-details">
+                <div><div class="summary-label">Checked In</div><div class="summary-time">${formatTime(c.check_in_time)}</div></div>
+                <div><div class="summary-label">Working On</div><div class="summary-value">${esc(c.working_on)}</div></div>
+                <div><div class="summary-label">Goal</div><div class="summary-value">${esc(c.goal)}</div></div>`;
+
+        if (isComplete) {
+            html += `
+                <div style="border-top:1px solid #e0e0e0; padding-top:10px; margin-top:4px;">
+                    <div class="summary-label">Checked Out</div><div class="summary-time">${formatTime(c.check_out_time)}</div>
+                </div>
+                <div><div class="summary-label">Accomplished</div><div class="summary-value">${esc(c.accomplished)}</div></div>
+                <div><div class="summary-label">Reflection</div><div class="summary-value">${esc(c.went_well_poorly)}</div></div>`;
+        }
+
+        html += `</div></div>`;
+        return html;
+    }
+
+    // ================ MULTI-FILE UPLOAD HELPERS ================
+    // Each section gets its own file array
+    let pmFiles = [];
+    let quoteFiles = [];
+
+    function setupMultiFileUpload(zoneId, inputId, listId, fileArray, fileArrayName) {
+        const zone = document.getElementById(zoneId);
+        const input = document.getElementById(inputId);
+        if (!zone || !input) return;
+
+        // Click-to-browse
+        input.addEventListener('change', () => {
+            for (const f of input.files) addFileToArray(f, fileArrayName, listId);
+            input.value = '';
         });
 
-        // Upload button
-        document.getElementById('upload-btn').addEventListener('click', () => openModal('upload-modal'));
-
-        // Upload zone
-        const zone = document.getElementById('upload-drop-zone');
-        const fileInput = document.getElementById('upload-file-input');
-        zone.addEventListener('click', () => fileInput.click());
+        // Drag & drop
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
             zone.classList.remove('drag-over');
-            if (e.dataTransfer.files[0]) handleUploadFile(e.dataTransfer.files[0]);
-        });
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files[0]) handleUploadFile(fileInput.files[0]);
-        });
-
-        // Upload submit
-        document.getElementById('upload-submit-btn').addEventListener('click', submitUpload);
-
-        // Toggle switches
-        document.querySelectorAll('.toggle-switch').forEach(el => {
-            el.addEventListener('click', () => el.classList.toggle('on'));
-        });
-
-        // Modal close buttons
-        document.querySelectorAll('[data-close]').forEach(btn => {
-            btn.addEventListener('click', () => closeModal(btn.dataset.close));
-        });
-        document.querySelectorAll('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) overlay.classList.remove('open');
-            });
-        });
-
-        // Edit save
-        document.getElementById('edit-save-btn').addEventListener('click', saveEdit);
-        document.getElementById('edit-delete-btn').addEventListener('click', () => {
-            document.getElementById('delete-id').value = document.getElementById('edit-id').value;
-            closeModal('edit-modal');
-            openModal('delete-modal');
-        });
-
-        // Delete confirm
-        document.getElementById('delete-confirm-btn').addEventListener('click', confirmDelete);
-
-        // Lightbox close
-        document.getElementById('lightbox').addEventListener('click', (e) => {
-            if (e.target.closest('.lightbox-close') || e.target === document.getElementById('lightbox')) {
-                document.getElementById('lightbox').classList.remove('open');
-            }
-        });
-
-        // Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-                document.getElementById('lightbox').classList.remove('open');
-            }
+            for (const f of e.dataTransfer.files) addFileToArray(f, fileArrayName, listId);
         });
     }
 
-    // ================ SIDEBAR FILTER ================
-    function applySidebarFilter(filter) {
-        // Clear type-specific filters
-        delete currentFilter.type;
-        delete currentFilter.media;
-        delete currentFilter.ad;
-
-        if (filter === 'images') currentFilter.media = 'image';
-        else if (filter === 'videos') currentFilter.media = 'video';
-        else if (filter === 'ads') currentFilter.ad = 'true';
-        else if (filter !== 'all') currentFilter.type = filter;
-
-        loadMedia();
-    }
-
-    // ================ LOAD MEDIA ================
-    async function loadMedia() {
-        const grid = document.getElementById('media-grid');
-        grid.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading media...</div>';
-
-        try {
-            const params = new URLSearchParams();
-            Object.entries(currentFilter).forEach(([k, v]) => { if (v) params.set(k, v); });
-
-            const data = await api(`/api/media/list?${params}`);
-            allMedia = data.media;
-
-            // Update sidebar counts
-            document.getElementById('count-all').textContent = data.counts.total;
-            document.getElementById('count-images').textContent = data.counts.images;
-            document.getElementById('count-videos').textContent = data.counts.videos;
-            document.getElementById('count-ads').textContent = data.counts.ads;
-
-            // Update building type sidebar
-            renderTypeSidebar(data.typeCounts);
-
-            // Update toolbar count
-            document.getElementById('toolbar-count').textContent = `${allMedia.length} items`;
-
-            renderGrid();
-        } catch (err) {
-            grid.innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><h3>Error loading media</h3><p>${esc(err.message)}</p></div>`;
-        }
-    }
-
-    function renderTypeSidebar(typeCounts) {
-        const container = document.getElementById('sidebar-types');
-        const countMap = {};
-        typeCounts.forEach(tc => { countMap[tc.building_type] = tc.count; });
-
-        container.innerHTML = BUILDING_TYPES.map(type => {
-            const count = countMap[type] || 0;
-            const icon = TYPE_ICONS[type] || 'fa-building';
-            const filterKey = type.toLowerCase().replace(/\s+/g, '-');
-            const isActive = currentFilter.type === type ? ' active' : '';
-            return `<div class="sidebar-item${isActive}" data-filter="${type}">
-                <i class="fa-solid ${icon}"></i> ${type}
-                <span class="count">${count}</span>
-            </div>`;
-        }).join('');
-    }
-
-    // ================ RENDER GRID ================
-    function renderGrid() {
-        const grid = document.getElementById('media-grid');
-
-        if (allMedia.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state" style="grid-column:1/-1;">
-                    <i class="fa-solid fa-image"></i>
-                    <h3>No media found</h3>
-                    <p>Try adjusting your filters or upload new media.</p>
-                </div>`;
-            return;
-        }
-
-        const isAdmin = currentUser.role === 'admin';
-
-        grid.innerHTML = allMedia.map(item => {
-            const isVideo = item.file_type === 'video';
-            const dim = (item.width && item.length) ? `${item.width}' × ${item.length}'${item.height ? ` × ${item.height}'` : ''}` : '';
-            const dimFull = (item.width && item.length) ? `${item.width}' W × ${item.length}' L${item.height ? ` × ${item.height}' H` : ''}` : '';
-            const colorDot = item.color && COLOR_MAP[item.color] ? `<span class="media-color-badge"><span class="media-color-dot" style="background:${COLOR_MAP[item.color]}"></span>${esc(item.color)}</span>` : '';
-
-            const vendors = [];
-            if (item.vendor_carport_experts) vendors.push('Carport Experts');
-            if (item.vendor_us_steel) vendors.push('US Steel');
-            if (item.vendor_eagle) vendors.push('Eagle');
-            if (item.vendor_galv_struct) vendors.push('Galv Struct');
-            if (item.vendor_bluestone) vendors.push('Bluestone');
-
-            const adminBtns = isAdmin ? `
-                <button class="media-overlay-btn" title="Edit" onclick="event.stopPropagation(); window._app.openEdit(${item.id})">
-                    <i class="fa-solid fa-pen"></i>
-                </button>
-                <button class="media-overlay-btn" title="Delete" onclick="event.stopPropagation(); window._app.openDelete(${item.id})">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>` : '';
-
-            return `
-            <div class="media-card" onclick="window._app.openLightbox(${item.id})">
-                <div class="media-thumbnail">
-                    ${isVideo
-                        ? `<video src="${esc(item.file_url)}" muted preload="metadata"></video>`
-                        : `<img src="${esc(item.file_url)}" alt="${esc(item.building_type || 'Media')}" loading="lazy">`
-                    }
-                    <div class="media-type-icon">
-                        <i class="fa-solid ${isVideo ? 'fa-video' : 'fa-image'}"></i>
-                        ${isVideo ? 'Video' : 'Image'}
-                    </div>
-                    ${item.is_advertisement ? '<div class="media-ad-badge">AD</div>' : ''}
-                    <div class="media-overlay">
-                        <div class="media-dimensions">${dim}</div>
-                        <div class="media-overlay-actions">
-                            <a class="media-overlay-btn" title="Download" href="${esc(item.file_url)}" download="${esc(item.file_name)}" onclick="event.stopPropagation()">
-                                <i class="fa-solid fa-download"></i>
-                            </a>
-                            ${adminBtns}
-                        </div>
-                    </div>
-                </div>
-                <div class="media-info">
-                    <div class="media-info-top">
-                        <span class="media-building-type">${esc(item.building_type || 'Uncategorized')}</span>
-                        ${colorDot}
-                    </div>
-                    ${dimFull ? `<div class="media-dim-text">${dimFull}</div>` : ''}
-                    ${vendors.length > 0 ? `<div class="media-vendors">${vendors.map(v => `<span class="vendor-tag">${v}</span>`).join('')}</div>` : ''}
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    // ================ UPLOAD ================
-    function handleUploadFile(file) {
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-        if (!isImage && !isVideo) {
-            showToast('error', 'Please upload an image or video file.');
+    function addFileToArray(file, arrayName, listId) {
+        if (!file.type.includes('pdf')) {
+            alert('Please upload PDF files only.');
             return;
         }
         if (file.size > 3 * 1024 * 1024) {
-            showToast('error', 'File must be under 3MB.');
+            alert('Each file must be under 3MB.');
             return;
         }
-        uploadFile = file;
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        // Prevent duplicates by name
+        if (arr.some(f => f.name === file.name && f.size === file.size)) return;
+        arr.push(file);
+        renderFileList(arrayName, listId);
+    }
 
-        const zone = document.getElementById('upload-drop-zone');
-        zone.classList.add('has-file');
-        const preview = document.getElementById('upload-file-preview');
-        preview.style.display = 'flex';
+    function removeFileFromArray(index, arrayName, listId) {
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        arr.splice(index, 1);
+        if (arrayName === 'pm') pmFiles = arr;
+        else quoteFiles = arr;
+        renderFileList(arrayName, listId);
+    }
 
-        if (isImage) {
-            const url = URL.createObjectURL(file);
-            preview.innerHTML = `
-                <img src="${url}" class="upload-preview-img">
-                <div class="upload-preview-info">
-                    <div class="upload-preview-name">${esc(file.name)}</div>
-                    <div class="upload-preview-size">${(file.size / 1024).toFixed(0)} KB</div>
-                    <button class="btn btn-outline" style="margin-top:8px;padding:6px 12px;font-size:0.78rem;" onclick="window._app.clearUploadFile()">
-                        <i class="fa-solid fa-xmark"></i> Remove
-                    </button>
-                </div>`;
-        } else {
-            preview.innerHTML = `
-                <div class="upload-preview-video"><i class="fa-solid fa-video"></i></div>
-                <div class="upload-preview-info">
-                    <div class="upload-preview-name">${esc(file.name)}</div>
-                    <div class="upload-preview-size">${(file.size / 1024).toFixed(0)} KB</div>
-                    <button class="btn btn-outline" style="margin-top:8px;padding:6px 12px;font-size:0.78rem;" onclick="window._app.clearUploadFile()">
-                        <i class="fa-solid fa-xmark"></i> Remove
-                    </button>
-                </div>`;
+    function renderFileList(arrayName, listId) {
+        const list = document.getElementById(listId);
+        const arr = arrayName === 'pm' ? pmFiles : quoteFiles;
+        if (!list) return;
+        if (arr.length === 0) {
+            list.innerHTML = '';
+            return;
+        }
+        list.innerHTML = arr.map((f, i) => `
+            <div class="file-list-item">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span class="file-list-name">${esc(f.name)}</span>
+                <span class="file-list-size">${(f.size / 1024).toFixed(0)} KB</span>
+                <button type="button" class="file-remove-btn" data-index="${i}" data-array="${arrayName}" data-list="${listId}">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.file-remove-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                removeFileFromArray(parseInt(btn.dataset.index), btn.dataset.array, btn.dataset.list);
+            });
+        });
+    }
+
+    async function filesToBase64Array(fileArray) {
+        const results = [];
+        for (const file of fileArray) {
+            const data = await fileToBase64(file);
+            results.push({ data, name: file.name });
+        }
+        return results;
+    }
+
+    // ================ ARIZONA QUOTE REQUEST ================
+    let quoteFormReady = false;
+
+    function loadQuoteRequest() {
+        if (!quoteFormReady) {
+            setupMultiFileUpload('quote-file-upload-zone', 'quote-files-input', 'quote-file-list', quoteFiles, 'quote');
+            const form = document.getElementById('quote-form');
+            if (form) form.addEventListener('submit', handleQuoteSubmit);
+            quoteFormReady = true;
+        }
+        loadMyQuotes();
+
+        if (currentUser.role === 'admin') {
+            document.getElementById('admin-quotes-panel').style.display = 'block';
+            loadAdminQuotes();
         }
     }
 
-    function clearUploadFile() {
-        uploadFile = null;
-        document.getElementById('upload-drop-zone').classList.remove('has-file');
-        document.getElementById('upload-file-preview').style.display = 'none';
-        document.getElementById('upload-file-input').value = '';
+    async function handleQuoteSubmit(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        try {
+            const files = await filesToBase64Array(quoteFiles);
+            await api('/api/request', 'POST', {
+                type: 'arizona_quote',
+                needed_by: document.getElementById('quote-needed-by').value,
+                customer_needs: document.getElementById('quote-special-requests').value.trim(),
+                files: files,
+            });
+
+            document.getElementById('quote-form-area').innerHTML = `
+                <div class="card">
+                    <div class="success-message">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <h3>Quote Request Submitted</h3>
+                        <p>Your Arizona quote request has been sent to your manager.</p>
+                        <button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Submit Another</button>
+                    </div>
+                </div>
+            `;
+            quoteFiles = [];
+            loadMyQuotes();
+            if (currentUser.role === 'admin') loadAdminQuotes();
+        } catch (err) {
+            alert(err.message || 'Submission failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request';
+        }
     }
 
-    async function submitUpload() {
-        if (!uploadFile) {
-            showToast('error', 'Please select a file to upload.');
+    async function loadMyQuotes() {
+        const area = document.getElementById('my-quotes-area');
+        if (!area) return;
+        try {
+            const data = await api('/api/request/mine');
+            const quotes = data.requests.filter(r => r.type === 'arizona_quote');
+            if (quotes.length === 0) { area.innerHTML = ''; return; }
+            area.innerHTML = `
+                <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Quote Requests</h3>
+                <div class="team-grid">${quotes.map(r => renderRequestCard(r, false)).join('')}</div>
+            `;
+        } catch { area.innerHTML = ''; }
+    }
+
+    async function loadAdminQuotes() {
+        const grid = document.getElementById('admin-quotes-grid');
+        if (!grid) return;
+        grid.innerHTML = '<p class="text-muted">Loading...</p>';
+        try {
+            const data = await api('/api/admin/requests');
+            const quotes = data.requests.filter(r => r.type === 'arizona_quote');
+            if (quotes.length === 0) {
+                grid.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-inbox"></i>No quote requests submitted yet.</div>';
+                return;
+            }
+            grid.innerHTML = quotes.map(r => renderRequestCard(r, true)).join('');
+            attachStatusListeners(grid);
+        } catch {
+            grid.innerHTML = '<p class="text-muted">Could not load quote requests.</p>';
+        }
+    }
+
+    // ================ PRICE MATCH / DISCOUNT ================
+    let currentRequestType = 'price_match';
+    let pmFormReady = false;
+
+    function loadPriceMatch() {
+        setupTypeToggle();
+        if (!pmFormReady) {
+            setupMultiFileUpload('pm-file-upload-zone', 'pm-files-input', 'pm-file-list', pmFiles, 'pm');
+            pmFormReady = true;
+        }
+        setupRequestForm();
+        loadMyRequests();
+
+        if (currentUser.role === 'admin') {
+            document.getElementById('admin-requests-panel').style.display = 'block';
+            loadAdminRequests();
+        }
+    }
+
+    function setupTypeToggle() {
+        const btns = document.querySelectorAll('.type-toggle-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentRequestType = btn.dataset.type;
+                updateFormLabels();
+            });
+        });
+        updateFormLabels();
+    }
+
+    function updateFormLabels() {
+        const title = document.getElementById('request-form-title');
+        const lbl = document.getElementById('lbl-manufacturer');
+        if (currentRequestType === 'price_match') {
+            title.innerHTML = '<i class="fa-solid fa-scale-balanced"></i> Submit Price Match Request';
+            lbl.textContent = 'Which manufacturer are we price matching?';
+        } else {
+            title.innerHTML = '<i class="fa-solid fa-percent"></i> Submit Discount Request';
+            lbl.textContent = 'Which manufacturer / product is this for?';
+        }
+    }
+
+    function setupRequestForm() {
+        const form = document.getElementById('request-form');
+        if (!form) return;
+        form.removeEventListener('submit', handleRequestSubmit);
+        form.addEventListener('submit', handleRequestSubmit);
+    }
+
+    async function handleRequestSubmit(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+        try {
+            const files = await filesToBase64Array(pmFiles);
+            await api('/api/request', 'POST', {
+                type: currentRequestType,
+                manufacturer: document.getElementById('req-manufacturer').value.trim(),
+                needed_by: document.getElementById('req-needed-by').value,
+                customer_needs: document.getElementById('req-customer-needs').value.trim(),
+                files: files,
+            });
+
+            document.getElementById('request-form-area').innerHTML = `
+                <div class="card">
+                    <div class="success-message">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <h3>Request Submitted</h3>
+                        <p>Your ${currentRequestType === 'price_match' ? 'price match' : 'discount'} request has been sent to your manager.</p>
+                        <button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Submit Another</button>
+                    </div>
+                </div>
+            `;
+            pmFiles = [];
+            loadMyRequests();
+            if (currentUser.role === 'admin') loadAdminRequests();
+        } catch (err) {
+            alert(err.message || 'Submission failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request';
+        }
+    }
+
+    async function loadMyRequests() {
+        const area = document.getElementById('my-requests-area');
+        if (!area) return;
+        try {
+            const data = await api('/api/request/mine');
+            const reqs = data.requests.filter(r => r.type !== 'arizona_quote');
+            if (reqs.length === 0) { area.innerHTML = ''; return; }
+            area.innerHTML = `
+                <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Requests</h3>
+                <div class="team-grid">${reqs.map(r => renderRequestCard(r, false)).join('')}</div>
+            `;
+        } catch { area.innerHTML = ''; }
+    }
+
+    async function loadAdminRequests() {
+        const grid = document.getElementById('admin-requests-grid');
+        if (!grid) return;
+        grid.innerHTML = '<p class="text-muted">Loading...</p>';
+        try {
+            const data = await api('/api/admin/requests');
+            const reqs = data.requests.filter(r => r.type !== 'arizona_quote');
+            if (reqs.length === 0) {
+                grid.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-inbox"></i>No requests submitted yet.</div>';
+                return;
+            }
+            grid.innerHTML = reqs.map(r => renderRequestCard(r, true)).join('');
+            attachStatusListeners(grid);
+        } catch {
+            grid.innerHTML = '<p class="text-muted">Could not load requests.</p>';
+        }
+    }
+
+    // ================ REQUEST CARD (shared for both sections) ================
+    function renderRequestCard(r, showUser) {
+        const isPM = r.type === 'price_match';
+        const isQuote = r.type === 'arizona_quote';
+        const isDiscount = r.type === 'discount';
+
+        let typeLabel, typeBadgeClass, cardBorderClass;
+        if (isPM) {
+            typeLabel = 'Price Match';
+            typeBadgeClass = 'price-match';
+            cardBorderClass = '';
+        } else if (isDiscount) {
+            typeLabel = 'Discount Request';
+            typeBadgeClass = 'discount';
+            cardBorderClass = ' type-discount';
+        } else {
+            typeLabel = 'AZ Quote Request';
+            typeBadgeClass = 'az-quote';
+            cardBorderClass = ' type-az-quote';
+        }
+
+        const date = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        // Status badge
+        const status = r.status || 'pending';
+        const statusInfo = getStatusInfo(status);
+
+        const userHtml = showUser ? `
+            <div class="request-user">
+                <img src="${r.picture || ''}" alt="">
+                <div class="request-user-info">
+                    <div class="request-user-name">${esc(r.name)}</div>
+                    <div class="request-date">${date}</div>
+                </div>
+            </div>` : `<div class="request-date" style="font-size:0.8rem; color:var(--medium);">${date}</div>`;
+
+        // Files section — new multi-file format
+        let filesHtml = '';
+        if (r.files && r.files.length > 0) {
+            filesHtml = r.files.map(f =>
+                `<a href="/api/request/file/${f.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(f.file_name)}</a>`
+            ).join('');
+        }
+        // Legacy single file fallback
+        else if (r.pdf_filename) {
+            filesHtml = `<a href="/api/request/pdf/${r.id}" target="_blank" class="request-pdf-link"><i class="fa-solid fa-file-pdf"></i> ${esc(r.pdf_filename)}</a>`;
+        } else {
+            filesHtml = '<span class="text-muted" style="font-size:0.82rem;">No documents attached</span>';
+        }
+
+        // Admin status control
+        let adminStatusHtml = '';
+        if (showUser && currentUser.role === 'admin') {
+            adminStatusHtml = `
+                <div class="admin-status-control">
+                    <label class="admin-status-label">Status:</label>
+                    <select class="status-select" data-request-id="${r.id}">
+                        <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="on_pause" ${status === 'on_pause' ? 'selected' : ''}>On Pause</option>
+                        <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                </div>`;
+        }
+
+        // Build fields based on type
+        let fieldsHtml = '';
+        if (isQuote) {
+            fieldsHtml = `
+                <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
+                <div><div class="summary-label">Special Requests</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
+                <div><div class="summary-label">Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
+        } else {
+            fieldsHtml = `
+                <div><div class="summary-label">Manufacturer</div><div class="summary-value">${esc(r.manufacturer)}</div></div>
+                <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
+                <div><div class="summary-label">Customer Needs</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
+                <div><div class="summary-label">Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
+        }
+
+        return `
+        <div class="request-card${cardBorderClass}">
+            <div class="request-meta">
+                ${userHtml}
+                <div class="request-badges">
+                    <span class="request-type-badge ${typeBadgeClass}">${typeLabel}</span>
+                    <span class="status-badge status-${status}"><i class="fa-solid ${statusInfo.icon}"></i> ${statusInfo.label}</span>
+                </div>
+            </div>
+            <div class="request-fields">
+                ${fieldsHtml}
+            </div>
+            ${adminStatusHtml}
+        </div>`;
+    }
+
+    function getStatusInfo(status) {
+        switch (status) {
+            case 'completed': return { label: 'Completed', icon: 'fa-circle-check' };
+            case 'on_pause': return { label: 'On Pause', icon: 'fa-pause' };
+            default: return { label: 'Pending', icon: 'fa-clock' };
+        }
+    }
+
+    function attachStatusListeners(container) {
+        container.querySelectorAll('.status-select').forEach(select => {
+            select.addEventListener('change', async (e) => {
+                const requestId = e.target.dataset.requestId;
+                const newStatus = e.target.value;
+                e.target.disabled = true;
+                try {
+                    await api('/api/request/status', 'POST', { id: parseInt(requestId), status: newStatus });
+                    // Update the badge in the same card
+                    const card = e.target.closest('.request-card');
+                    const badge = card.querySelector('.status-badge');
+                    const info = getStatusInfo(newStatus);
+                    badge.className = `status-badge status-${newStatus}`;
+                    badge.innerHTML = `<i class="fa-solid ${info.icon}"></i> ${info.label}`;
+                } catch (err) {
+                    alert('Failed to update status: ' + (err.message || 'Unknown error'));
+                }
+                e.target.disabled = false;
+            });
+        });
+    }
+
+    // ================ DAILY TALK ================
+    // hiddenExtIds = IDs the admin has REMOVED from the board (shared for all users)
+    let hiddenExtIds = [];
+    let talkData = null;
+    let talkControlsReady = false;
+
+    async function loadDailyTalk() {
+        const datePicker = document.getElementById('talk-date');
+        if (!datePicker.value) datePicker.value = todayStr();
+
+        // Load shared filter from server
+        try {
+            const filterData = await api('/api/settings/talk-filter');
+            hiddenExtIds = filterData.hiddenIds || [];
+        } catch { hiddenExtIds = []; }
+
+        if (!talkControlsReady) {
+            setupTalkControls();
+            talkControlsReady = true;
+        }
+        await fetchTalkTime(datePicker.value);
+    }
+
+    function setupTalkControls() {
+        const datePicker = document.getElementById('talk-date');
+        document.getElementById('talk-refresh-btn').onclick = () => fetchTalkTime(datePicker.value);
+        datePicker.onchange = () => fetchTalkTime(datePicker.value);
+
+        // Only admin can see and use the filter button
+        const filterBtn = document.getElementById('talk-filter-btn');
+        if (currentUser.role !== 'admin') {
+            filterBtn.style.display = 'none';
             return;
         }
 
-        const btn = document.getElementById('upload-submit-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+        filterBtn.onclick = () => {
+            const panel = document.getElementById('talk-filter-panel');
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) buildFilterList();
+        };
 
-        try {
-            const fileData = await fileToBase64(uploadFile);
+        document.getElementById('talk-filter-close').onclick = () => {
+            document.getElementById('talk-filter-panel').style.display = 'none';
+        };
 
-            await api('/api/media/upload', 'POST', {
-                file_data: fileData,
-                file_name: uploadFile.name,
-                building_type: document.getElementById('up-type').value || null,
-                width: parseInt(document.getElementById('up-width').value) || null,
-                length: parseInt(document.getElementById('up-length').value) || null,
-                height: parseInt(document.getElementById('up-height').value) || null,
-                color: document.getElementById('up-color').value || null,
-                is_advertisement: document.getElementById('up-ad-toggle').classList.contains('on'),
-                vendor_carport_experts: document.getElementById('up-v-carport').value || null,
-                vendor_us_steel: document.getElementById('up-v-ussteel').value || null,
-                vendor_eagle: document.getElementById('up-v-eagle').value || null,
-                vendor_galv_struct: document.getElementById('up-v-galv').value || null,
-                vendor_bluestone: document.getElementById('up-v-bluestone').value || null,
+        document.getElementById('filter-select-all').onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = true);
+        };
+
+        document.getElementById('filter-deselect-all').onclick = () => {
+            document.querySelectorAll('#talk-filter-list input').forEach(cb => cb.checked = false);
+        };
+
+        document.getElementById('talk-filter-apply').onclick = async () => {
+            const applyBtn = document.getElementById('talk-filter-apply');
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            // Anything UNCHECKED gets added to the hidden list
+            hiddenExtIds = [];
+            document.querySelectorAll('#talk-filter-list input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked) hiddenExtIds.push(cb.value);
             });
 
-            showToast('success', 'Media uploaded successfully!');
-            closeModal('upload-modal');
-            resetUploadForm();
-            loadMedia();
-        } catch (err) {
-            showToast('error', err.message || 'Upload failed');
+            // Save to server so ALL users see the same filter
+            try {
+                await api('/api/settings/talk-filter', 'POST', { hiddenIds: hiddenExtIds });
+            } catch (err) {
+                alert('Failed to save filter: ' + err.message);
+            }
+
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = 'Apply Filter';
+            document.getElementById('talk-filter-panel').style.display = 'none';
+            renderLeaderboard();
+        };
+    }
+
+    function buildFilterList() {
+        const list = document.getElementById('talk-filter-list');
+        if (!talkData) {
+            list.innerHTML = '<p class="text-muted" style="padding:12px;">No data loaded yet. Load data first.</p>';
+            return;
         }
-
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket"></i> Upload';
+        // Use allExtensions (every rep in RingCentral) for the filter, not just those with calls
+        const reps = talkData.allExtensions || talkData.leaderboard || [];
+        if (reps.length === 0) {
+            list.innerHTML = '<p class="text-muted" style="padding:12px;">No reps found.</p>';
+            return;
+        }
+        // checked = visible on the board, unchecked = hidden
+        list.innerHTML = reps.map(rep => {
+            const isHidden = hiddenExtIds.includes(rep.id);
+            return `<label class="filter-item">
+                <input type="checkbox" value="${rep.id}" ${isHidden ? '' : 'checked'}>
+                ${esc(rep.name)}
+            </label>`;
+        }).join('');
     }
 
-    function resetUploadForm() {
-        clearUploadFile();
-        document.getElementById('up-width').value = '';
-        document.getElementById('up-length').value = '';
-        document.getElementById('up-height').value = '';
-        document.getElementById('up-type').value = '';
-        document.getElementById('up-color').value = '';
-        document.getElementById('up-ad-toggle').classList.remove('on');
-        document.getElementById('up-v-carport').value = '';
-        document.getElementById('up-v-ussteel').value = '';
-        document.getElementById('up-v-eagle').value = '';
-        document.getElementById('up-v-galv').value = '';
-        document.getElementById('up-v-bluestone').value = '';
-    }
-
-    // ================ EDIT ================
-    function openEdit(id) {
-        const item = allMedia.find(m => m.id === id);
-        if (!item) return;
-
-        document.getElementById('edit-id').value = id;
-        document.getElementById('edit-width').value = item.width || '';
-        document.getElementById('edit-length').value = item.length || '';
-        document.getElementById('edit-height').value = item.height || '';
-        document.getElementById('edit-type').value = item.building_type || '';
-        document.getElementById('edit-color').value = item.color || '';
-
-        const adToggle = document.getElementById('edit-ad-toggle');
-        if (item.is_advertisement) adToggle.classList.add('on');
-        else adToggle.classList.remove('on');
-
-        document.getElementById('edit-v-carport').value = item.vendor_carport_experts || '';
-        document.getElementById('edit-v-ussteel').value = item.vendor_us_steel || '';
-        document.getElementById('edit-v-eagle').value = item.vendor_eagle || '';
-        document.getElementById('edit-v-galv').value = item.vendor_galv_struct || '';
-        document.getElementById('edit-v-bluestone').value = item.vendor_bluestone || '';
-
-        openModal('edit-modal');
-    }
-
-    async function saveEdit() {
-        const id = document.getElementById('edit-id').value;
-        const btn = document.getElementById('edit-save-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    async function fetchTalkTime(date) {
+        const board = document.getElementById('talk-leaderboard');
+        board.innerHTML = '<p class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading talk time data...</p>';
 
         try {
-            await api(`/api/media/${id}`, 'PUT', {
-                building_type: document.getElementById('edit-type').value || null,
-                width: parseInt(document.getElementById('edit-width').value) || null,
-                length: parseInt(document.getElementById('edit-length').value) || null,
-                height: parseInt(document.getElementById('edit-height').value) || null,
-                color: document.getElementById('edit-color').value || null,
-                is_advertisement: document.getElementById('edit-ad-toggle').classList.contains('on'),
-                vendor_carport_experts: document.getElementById('edit-v-carport').value || null,
-                vendor_us_steel: document.getElementById('edit-v-ussteel').value || null,
-                vendor_eagle: document.getElementById('edit-v-eagle').value || null,
-                vendor_galv_struct: document.getElementById('edit-v-galv').value || null,
-                vendor_bluestone: document.getElementById('edit-v-bluestone').value || null,
-            });
-
-            showToast('success', 'Changes saved!');
-            closeModal('edit-modal');
-            loadMedia();
+            const data = await api(`/api/ringcentral/talktime?date=${date}`);
+            talkData = data;
+            renderLeaderboard();
         } catch (err) {
-            showToast('error', err.message || 'Save failed');
+            board.innerHTML = `<div class="no-data-message"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(err.message)}</div>`;
+            document.getElementById('talk-last-updated').textContent = '';
+        }
+    }
+
+    function renderLeaderboard() {
+        if (!talkData) return;
+        const board = document.getElementById('talk-leaderboard');
+
+        // Filter out hidden reps
+        const items = talkData.leaderboard.filter(r => !hiddenExtIds.includes(r.id));
+
+        // Update totals
+        const totalCalls = items.reduce((s, r) => s + r.calls, 0);
+        const totalTime = items.reduce((s, r) => s + r.talkTime, 0);
+        document.getElementById('talk-total-calls').textContent = totalCalls.toLocaleString();
+        document.getElementById('talk-total-time').textContent = fmtDuration(totalTime);
+        document.getElementById('talk-total-reps').textContent = items.filter(r => r.calls > 0).length;
+
+        const updated = new Date(talkData.lastUpdated);
+        document.getElementById('talk-last-updated').textContent =
+            `Last updated: ${updated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+
+        if (items.length === 0) {
+            board.innerHTML = '<div class="no-data-message"><i class="fa-solid fa-phone-slash"></i>No call data found for this date.</div>';
+            return;
         }
 
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Save Changes';
+        board.innerHTML = items.map((rep, i) => {
+            const rank = i + 1;
+            const rankClass = rank <= 3 ? ` rank-${rank}` : '';
+            return `
+            <div class="leaderboard-item${rankClass}">
+                <div class="leaderboard-rank">#${rank}</div>
+                <div class="leaderboard-name">${esc(rep.name)}</div>
+                <div class="leaderboard-stat">
+                    <span class="leaderboard-stat-value">${rep.calls}</span>
+                    <span class="leaderboard-stat-label">Calls</span>
+                </div>
+                <div class="leaderboard-time">
+                    <span class="leaderboard-time-value">${fmtDuration(rep.talkTime)}</span>
+                    <span class="leaderboard-time-label">Talk Time</span>
+                </div>
+            </div>`;
+        }).join('');
     }
 
-    // ================ DELETE ================
-    function openDelete(id) {
-        document.getElementById('delete-id').value = id;
-        openModal('delete-modal');
+    function fmtDuration(seconds) {
+        if (!seconds || seconds === 0) return '0m';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
     }
 
-    async function confirmDelete() {
-        const id = document.getElementById('delete-id').value;
-        const btn = document.getElementById('delete-confirm-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
-
-        try {
-            await api(`/api/media/${id}`, 'DELETE');
-            showToast('success', 'Media deleted');
-            closeModal('delete-modal');
-            loadMedia();
-        } catch (err) {
-            showToast('error', err.message || 'Delete failed');
-        }
-
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete';
-    }
-
-    // ================ LIGHTBOX ================
-    function openLightbox(id) {
-        const item = allMedia.find(m => m.id === id);
-        if (!item) return;
-
-        const container = document.getElementById('lightbox-media');
-        if (item.file_type === 'video') {
-            container.innerHTML = `<video src="${esc(item.file_url)}" controls autoplay class="lightbox-content"></video>`;
-        } else {
-            container.innerHTML = `<img src="${esc(item.file_url)}" alt="" class="lightbox-content">`;
-        }
-
-        const dim = (item.width && item.length) ? `${item.width}' × ${item.length}'${item.height ? ` × ${item.height}'` : ''}` : '';
-        document.getElementById('lightbox-title').textContent = `${item.building_type || 'Media'}${dim ? ' — ' + dim : ''}`;
-        document.getElementById('lightbox-detail').textContent = `${item.color || 'No color'} • ${item.file_type === 'video' ? 'Video' : 'Image'}`;
-        document.getElementById('lightbox').classList.add('open');
-    }
-
-    // ================ MODALS ================
-    function openModal(id) { document.getElementById(id).classList.add('open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-    // ================ TOAST ================
-    function showToast(type, message) {
-        const container = document.getElementById('toast-container');
-        const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `<i class="fa-solid ${icon}"></i> ${esc(message)}`;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.3s';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     // ================ HELPERS ================
@@ -531,13 +936,14 @@
         return data;
     }
 
-    function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
+    function todayStr() {
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    }
+
+    function formatTime(isoStr) {
+        if (!isoStr) return '—';
+        const d = new Date(isoStr);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' });
     }
 
     function esc(str) {
@@ -546,7 +952,4 @@
         d.textContent = str;
         return d.innerHTML;
     }
-
-    // Expose functions for inline onclick handlers
-    window._app = { openEdit, openDelete, openLightbox, clearUploadFile };
 })();
