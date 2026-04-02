@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metal America - Media Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+    <!-- ============ HEADER ============ -->
+    <header class="header">
+        <div class="header-inner">
+            <!-- Logo -->
+            <div class="header-brand">
+                <span class="logo-metal">METAL</span><span class="logo-america">AMERICA</span>
+            </div>
+
+            <!-- Nav items with dropdowns -->
+            <nav class="header-nav">
+                <div class="nav-item has-dropdown" data-filter="building_type">
+                    <span class="nav-link">Building Type <i class="fa-solid fa-chevron-down"></i></span>
+                    <div class="nav-dropdown">
+                        <div class="nav-dropdown-item" data-type="Garage">Garage</div>
+                        <div class="nav-dropdown-item" data-type="Barndominium">Barndominium</div>
+                        <div class="nav-dropdown-item" data-type="Storage">Storage</div>
+                        <div class="nav-dropdown-item" data-type="Shop">Shop</div>
+                        <div class="nav-dropdown-item" data-type="Carport/RV Cover">Carport / RV Cover</div>
+                    </div>
+                </div>
+
+                <div class="nav-item" data-filter="ads">
+                    <span class="nav-link">Advertisements</span>
+                </div>
+
+                <div class="nav-item has-dropdown" data-filter="concrete">
+                    <span class="nav-link">Concrete <i class="fa-solid fa-chevron-down"></i></span>
+                    <div class="nav-dropdown">
+                        <div class="nav-dropdown-item" data-type="Concrete Slab">Concrete Slab</div>
+                        <div class="nav-dropdown-item" data-type="Concrete Footer">Concrete Footer</div>
+                        <div class="nav-dropdown-item" data-type="Level Pad">Level Pad</div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Search -->
+            <div class="header-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search media..." id="search-input">
+            </div>
+
+            <!-- Right side -->
+            <div class="header-right">
+                <button class="btn btn-primary btn-upload" id="upload-btn" style="display:none;">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload
+                </button>
+                <div class="user-pill">
+                    <img id="user-avatar" src="" alt="" class="user-avatar-img">
+                    <span id="user-name" class="user-name-text"></span>
+                    <span id="admin-badge" class="admin-badge" style="display:none;">Admin</span>
+                </div>
+                <button id="logout-btn" class="nav-link-btn" title="Sign Out">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============ MAIN CONTENT (full width, no sidebar) ============ -->
+    <main class="main">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <h1 class="toolbar-title" id="toolbar-title">All Media</h1>
+                <span class="toolbar-count" id="toolbar-count"></span>
+            </div>
+            <div class="toolbar-right">
+                <select class="filter-select" id="filter-color">
+                    <option value="">All Colors</option>
+                    <option>Red</option><option>Gray</option><option>White</option>
+                    <option>Tan</option><option>Blue</option><option>Green</option>
+                    <option>Brown</option><option>Black</option>
+                </select>
+                <select class="filter-select" id="filter-sort">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="az">A &rarr; Z</option>
+                </select>
+                <div class="view-toggle">
+                    <button class="view-toggle-btn active" data-view="grid" title="Grid View">
+                        <i class="fa-solid fa-grid-2"></i>
+                    </button>
+                    <button class="view-toggle-btn" data-view="list" title="List View">
+                        <i class="fa-solid fa-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Media Grid -->
+        <div class="media-grid" id="media-grid">
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading media...</div>
+        </div>
+    </main>
+
+    <!-- ============ UPLOAD MODAL ============ -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 class="modal-title">Upload Media</h2>
+                <button class="modal-close" data-close="upload-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-zone" id="upload-drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <div class="upload-zone-title">Drag and drop files here</div>
+                    <div class="upload-zone-hint">or <span>browse files</span> — JPG, PNG, MP4 up to 3MB</div>
+                    <input type="file" id="upload-file-input" accept="image/*,video/mp4,video/quicktime" style="display:none;">
+                </div>
+                <div id="upload-file-preview" class="upload-file-preview" style="display:none;"></div>
+
+                <div style="margin-top:24px;">
+                    <div class="form-section-title">Media Details</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">WIDTH (FT)</label>
+                            <input type="number" class="form-input" id="up-width" placeholder="e.g. 24">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">LENGTH (FT)</label>
+                            <input type="number" class="form-input" id="up-length" placeholder="e.g. 30">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">HEIGHT (FT)</label>
+                            <input type="number" class="form-input" id="up-height" placeholder="e.g. 10">
+                        </div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">BUILDING TYPE</label>
+                            <select class="form-input" id="up-type">
+                                <option value="">Select type...</option>
+                                <option>Garage</option><option>Barndominium</option><option>Storage</option>
+                                <option>Shop</option><option>Carport/RV Cover</option>
+                                <option>Concrete Slab</option><option>Concrete Footer</option><option>Level Pad</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">COLOR</label>
+                            <select class="form-input" id="up-color">
+                                <option value="">Select color...</option>
+                                <option>Red</option><option>Gray</option><option>White</option>
+                                <option>Tan</option><option>Blue</option><option>Green</option>
+                                <option>Brown</option><option>Black</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-toggle">
+                        <div>
+                            <div class="form-label" style="margin-bottom:2px;">ADVERTISEMENT</div>
+                            <div style="font-size:13px;color:var(--ma-gray-600);">Flag this media for ad use</div>
+                        </div>
+                        <div class="toggle-switch" id="up-ad-toggle"></div>
+                    </div>
+                    <div class="form-section-title" style="margin-top:16px;">Vendor Links (optional)</div>
+                    <div class="form-group">
+                        <label class="form-label">CARPORT EXPERTS</label>
+                        <input type="url" class="form-input" id="up-v-carport" placeholder="https://...">
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">US STEEL</label>
+                            <input type="url" class="form-input" id="up-v-ussteel" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">EAGLE</label>
+                            <input type="url" class="form-input" id="up-v-eagle" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">GALV STRUCT</label>
+                            <input type="url" class="form-input" id="up-v-galv" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">BLUESTONE</label>
+                            <input type="url" class="form-input" id="up-v-bluestone" placeholder="https://...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="upload-modal">Cancel</button>
+                <button class="btn btn-primary" id="upload-submit-btn">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ EDIT MODAL ============ -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Media</h2>
+                <button class="modal-close" data-close="edit-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">WIDTH (FT)</label>
+                        <input type="number" class="form-input" id="edit-width">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">LENGTH (FT)</label>
+                        <input type="number" class="form-input" id="edit-length">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">HEIGHT (FT)</label>
+                        <input type="number" class="form-input" id="edit-height">
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">BUILDING TYPE</label>
+                        <select class="form-input" id="edit-type">
+                            <option value="">Select type...</option>
+                            <option>Garage</option><option>Barndominium</option><option>Storage</option>
+                            <option>Shop</option><option>Carport/RV Cover</option>
+                            <option>Concrete Slab</option><option>Concrete Footer</option><option>Level Pad</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">COLOR</label>
+                        <select class="form-input" id="edit-color">
+                            <option value="">Select color...</option>
+                            <option>Red</option><option>Gray</option><option>White</option>
+                            <option>Tan</option><option>Blue</option><option>Green</option>
+                            <option>Brown</option><option>Black</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-toggle">
+                    <div>
+                        <div class="form-label" style="margin-bottom:2px;">ADVERTISEMENT</div>
+                        <div style="font-size:13px;color:var(--ma-gray-600);">Flag for ad use</div>
+                    </div>
+                    <div class="toggle-switch" id="edit-ad-toggle"></div>
+                </div>
+                <div class="form-section-title" style="margin-top:8px;">Vendor Links</div>
+                <div class="form-group">
+                    <label class="form-label">CARPORT EXPERTS</label>
+                    <input type="url" class="form-input" id="edit-v-carport" placeholder="https://...">
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">US STEEL</label>
+                        <input type="url" class="form-input" id="edit-v-ussteel" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">EAGLE</label>
+                        <input type="url" class="form-input" id="edit-v-eagle" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">GALV STRUCT</label>
+                        <input type="url" class="form-input" id="edit-v-galv" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">BLUESTONE</label>
+                        <input type="url" class="form-input" id="edit-v-bluestone" placeholder="https://...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger-outline" id="edit-delete-btn" style="margin-right:auto;">
+                    <i class="fa-solid fa-trash-can"></i> Delete
+                </button>
+                <button class="btn btn-secondary" data-close="edit-modal">Cancel</button>
+                <button class="btn btn-primary" id="edit-save-btn">
+                    <i class="fa-solid fa-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ DELETE CONFIRM ============ -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal confirm-modal">
+            <div class="modal-body" style="text-align:center;padding:32px;">
+                <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <h3 class="confirm-title">Delete this media?</h3>
+                <p class="confirm-text">This action cannot be undone. The file will be permanently removed from the library.</p>
+                <input type="hidden" id="delete-id">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="delete-modal">Cancel</button>
+                <button class="btn btn-danger" id="delete-confirm-btn">
+                    <i class="fa-solid fa-trash-can"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LIGHTBOX ============ -->
+    <div class="lightbox-overlay" id="lightbox">
+        <button class="lightbox-close"><i class="fa-solid fa-xmark"></i></button>
+        <div class="lightbox-media" id="lightbox-media"></div>
+        <div class="lightbox-info">
+            <h3 id="lightbox-title"></h3>
+            <p id="lightbox-detail"></p>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

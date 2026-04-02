@@ -3,45 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metal America - Sales Team Hub</title>
+    <title>Metal America - Media Library</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="login-page">
     <div class="login-wrapper">
         <div class="login-card">
-            <!-- Red accent bar -->
             <div class="accent-bar"></div>
-
-            <!-- Logo row -->
-            <div class="login-logos">
-                <img src="/assets/MA Logo White Background.png" alt="Metal America" class="logo-name">
-                <img src="/assets/MA Mascot.png" alt="Metal America Mascot" class="logo-mascot">
-            </div>
-
-            <!-- Divider -->
-            <div class="login-divider"></div>
-
-            <!-- Welcome text -->
-            <h1 class="login-title">Sales Team Hub</h1>
-            <p class="login-subtitle">Sign in to access your portal</p>
-
-            <!-- Google Sign-In -->
-            <div class="signin-container">
-                <div id="google-signin-btn"></div>
-                <p id="auth-error" class="auth-error" style="display:none;"></p>
-                <p id="auth-loading" class="auth-loading" style="display:none;">Signing you in...</p>
-            </div>
-
-            <!-- Footer -->
-            <div class="login-footer">
-                <p>Metal America &mdash; Your Source for Quality Metal Products</p>
+            <div class="login-content">
+                <div class="login-logo-mark">MA</div>
+                <h1 class="login-title">Media Library</h1>
+                <p class="login-subtitle">Metal America</p>
+                <div class="login-divider"></div>
+                <p class="login-hint">Sign in with your company Google account</p>
+                <div class="signin-container">
+                    <div id="g_id_onload"></div>
+                    <div id="signin-btn"></div>
+                    <p class="auth-error" id="auth-error" style="display:none;"></p>
+                    <p class="auth-loading" id="auth-loading">Loading sign-in...</p>
+                </div>
             </div>
         </div>
     </div>
-
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="/js/auth.js"></script>
 </body>
 </html>
