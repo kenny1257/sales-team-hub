@@ -360,8 +360,8 @@
     }
 
     function addFileToArray(file, arrayName, listId) {
-        if (!file.type.includes('pdf') && !file.type.startsWith('image/')) {
-            alert('Please upload PDF or image files only.');
+        if (!file.type.includes('pdf')) {
+            alert('Please upload PDF files only.');
             return;
         }
         if (file.size > 15 * 1024 * 1024) {
@@ -393,7 +393,7 @@
         }
         list.innerHTML = arr.map((f, i) => `
             <div class="file-list-item">
-                <i class="fa-solid ${f.type.startsWith('image/') ? 'fa-file-image' : 'fa-file-pdf'}"></i>
+                <i class="fa-solid fa-file-pdf"></i>
                 <span class="file-list-name">${esc(f.name)}</span>
                 <span class="file-list-size">${(f.size / 1024).toFixed(0)} KB</span>
                 <button type="button" class="file-remove-btn" data-index="${i}" data-array="${arrayName}" data-list="${listId}">
