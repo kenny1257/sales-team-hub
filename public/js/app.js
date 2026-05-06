@@ -684,13 +684,16 @@
         let adminStatusHtml = '';
         if (showUser && currentUser.role === 'admin') {
             adminStatusHtml = `
-                <div class="admin-status-control">
+                <div class="admin-status-control" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <label class="admin-status-label">Status:</label>
                     <select class="status-select" data-request-id="${r.id}">
                         <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
                         <option value="on_pause" ${status === 'on_pause' ? 'selected' : ''}>On Pause</option>
                         <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
                     </select>
+                    <button type="button" class="btn btn-danger delete-request-btn" data-request-id="${r.id}" style="margin-left:auto; background:#d33; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
                 </div>`;
         }
 
@@ -753,6 +756,26 @@
                     alert('Failed to update status: ' + (err.message || 'Unknown error'));
                 }
                 e.target.disabled = false;
+            });
+        });
+
+        container.querySelectorAll('.delete-request-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const requestId = e.currentTarget.dataset.requestId;
+                if (!confirm('Permanently delete this submission and all its attachments? This cannot be undone.')) return;
+                e.currentTarget.disabled = true;
+                try {
+                    await api(`/api/request/${requestId}`, 'DELETE');
+                    const card = e.currentTarget.closest('.request-card');
+                    if (card) card.remove();
+                    if (currentUser.role === 'admin') {
+                        loadAdminQuotes();
+                        loadAdminRequests();
+                    }
+                } catch (err) {
+                    alert('Failed to delete: ' + (err.message || 'Unknown error'));
+                    e.currentTarget.disabled = false;
+                }
             });
         });
     }
