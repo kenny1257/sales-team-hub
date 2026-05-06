@@ -761,12 +761,13 @@
 
         container.querySelectorAll('.delete-request-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const requestId = e.currentTarget.dataset.requestId;
+                const button = e.currentTarget;
+                const requestId = button.dataset.requestId;
+                const card = button.closest('.request-card');
                 if (!confirm('Permanently delete this submission and all its attachments? This cannot be undone.')) return;
-                e.currentTarget.disabled = true;
+                button.disabled = true;
                 try {
                     await api(`/api/request/${requestId}`, 'DELETE');
-                    const card = e.currentTarget.closest('.request-card');
                     if (card) card.remove();
                     if (currentUser.role === 'admin') {
                         loadAdminQuotes();
@@ -774,7 +775,7 @@
                     }
                 } catch (err) {
                     alert('Failed to delete: ' + (err.message || 'Unknown error'));
-                    e.currentTarget.disabled = false;
+                    button.disabled = false;
                 }
             });
         });
