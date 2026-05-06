@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
     await initDb();
 
     const { rows } = await sql`
-        SELECT id, type, manufacturer, needed_by, customer_needs, pdf_filename, status, created_at
+        SELECT id, type, manufacturer, needed_by, customer_needs, pdf_filename, status, created_at, state, customer_name, customer_address
         FROM requests
         WHERE user_id = ${userId}
         ORDER BY created_at DESC

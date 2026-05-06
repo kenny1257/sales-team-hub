@@ -439,6 +439,12 @@
     async function handleQuoteSubmit(e) {
         e.preventDefault();
         const btn = e.target.querySelector('button[type="submit"]');
+
+        if (!quoteFiles || quoteFiles.length === 0) {
+            alert('A contract must be attached before submitting.');
+            return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
 
@@ -446,7 +452,9 @@
             const files = await filesToBase64Array(quoteFiles);
             await api('/api/request', 'POST', {
                 type: 'arizona_quote',
-                needed_by: document.getElementById('quote-needed-by').value,
+                state: document.getElementById('quote-state').value,
+                customer_name: document.getElementById('quote-customer-name').value.trim(),
+                customer_address: document.getElementById('quote-customer-address').value.trim(),
                 customer_needs: document.getElementById('quote-special-requests').value.trim(),
                 files: files,
             });
@@ -456,7 +464,7 @@
                     <div class="success-message">
                         <i class="fa-solid fa-circle-check"></i>
                         <h3>Quote Request Submitted</h3>
-                        <p>Your Arizona quote request has been sent to your manager.</p>
+                        <p>Your AZ / NV quote request has been sent to your manager.</p>
                         <button class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Submit Another</button>
                     </div>
                 </div>
@@ -638,7 +646,7 @@
             typeBadgeClass = 'discount';
             cardBorderClass = ' type-discount';
         } else {
-            typeLabel = 'AZ Quote Request';
+            typeLabel = r.state ? `${r.state} Quote Request` : 'AZ / NV Quote Request';
             typeBadgeClass = 'az-quote';
             cardBorderClass = ' type-az-quote';
         }
@@ -690,9 +698,11 @@
         let fieldsHtml = '';
         if (isQuote) {
             fieldsHtml = `
-                <div><div class="summary-label">Needed By</div><div class="summary-value">${r.needed_by || '—'}</div></div>
-                <div><div class="summary-label">Special Requests</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
-                <div><div class="summary-label">Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
+                <div><div class="summary-label">State</div><div class="summary-value">${esc(r.state) || '—'}</div></div>
+                <div><div class="summary-label">Customer Name</div><div class="summary-value">${esc(r.customer_name) || '—'}</div></div>
+                <div><div class="summary-label">Customer Address</div><div class="summary-value">${esc(r.customer_address) || '—'}</div></div>
+                <div><div class="summary-label">Special Notes / Requests</div><div class="summary-value">${esc(r.customer_needs)}</div></div>
+                <div><div class="summary-label">Contract / Documents</div><div class="request-files-list">${filesHtml}</div></div>`;
         } else {
             fieldsHtml = `
                 <div><div class="summary-label">Manufacturer</div><div class="summary-value">${esc(r.manufacturer)}</div></div>

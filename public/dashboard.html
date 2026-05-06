@@ -140,33 +140,40 @@
             </div>
         </section>
 
-        <!-- ARIZONA QUOTE REQUEST TAB -->
+        <!-- AZ / NV QUOTE REQUEST TAB -->
         <section id="tab-quote" class="tab-content">
-            <h2 class="section-title"><i class="fa-solid fa-file-invoice-dollar"></i> Arizona Quote Request</h2>
+            <h2 class="section-title"><i class="fa-solid fa-file-invoice-dollar"></i> AZ / NV Quote Request</h2>
 
             <div id="quote-form-area">
                 <div class="card">
-                    <h3 class="card-title"><i class="fa-solid fa-file-invoice-dollar"></i> Submit Arizona Quote Request</h3>
+                    <h3 class="card-title"><i class="fa-solid fa-file-invoice-dollar"></i> Submit AZ / NV Quote Request</h3>
                     <form id="quote-form">
                         <div class="form-group">
-                            <label class="form-label">When do you need this by?</label>
-                            <select class="form-control" id="quote-needed-by" required>
-                                <option value="" disabled selected>Select urgency...</option>
-                                <option value="ASAP">ASAP</option>
-                                <option value="End of the Week">End of the Week</option>
-                                <option value="No Rush">No Rush</option>
+                            <label class="form-label">State</label>
+                            <select class="form-control" id="quote-state" required>
+                                <option value="" disabled selected>Select state...</option>
+                                <option value="AZ">Arizona (AZ)</option>
+                                <option value="NV">Nevada (NV)</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Any special requests for the building?</label>
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" id="quote-customer-name" placeholder="Full name of the customer" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Customer Address</label>
+                            <textarea class="form-control" id="quote-customer-address" placeholder="Street address, city, state, ZIP" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Any special notes or requests for the building?</label>
                             <textarea class="form-control" id="quote-special-requests" placeholder="Describe any special requirements, modifications, or specifications for the building..." required></textarea>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Upload Contract / Quote or Additional Documents</label>
+                            <label class="form-label">Upload Contract <span style="color:#d33;">*</span></label>
                             <div class="file-upload-zone" id="quote-file-upload-zone">
                                 <i class="fa-solid fa-cloud-arrow-up"></i>
                                 <p>Click or drag files here to upload</p>
-                                <p class="file-hint">PDF files up to 15MB each — multiple files allowed</p>
+                                <p class="file-hint">A contract is required. PDF files up to 15MB each — multiple files allowed.</p>
                                 <input type="file" id="quote-files-input" accept=".pdf" multiple>
                             </div>
                             <div id="quote-file-list" class="file-list"></div>
