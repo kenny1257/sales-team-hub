@@ -9,12 +9,19 @@ module.exports = async function handler(req, res) {
 
     await initDb();
     const { rows: userRows } = await sql`SELECT role FROM users WHERE id = ${userId}`;
-    if (!userRows[0] || userRows[0].role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    if (!userRows[0]) return res.status(403).json({ error: 'User not found' });
+    const isAdmin = userRows[0].role === 'admin';
 
     const { id, status } = req.body;
     if (!id || !status) return res.status(400).json({ error: 'Missing id or status' });
-    if (!['pending', 'completed', 'on_pause'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status. Must be: pending, completed, or on_pause' });
+    if (!['submitted', 'pending', 'completed', 'on_pause'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be: submitted, pending, completed, or on_pause' });
+    }
+
+    const { rows: reqRows } = await sql`SELECT user_id FROM requests WHERE id = ${id}`;
+    if (reqRows.length === 0) return res.status(404).json({ error: 'Request not found' });
+    if (!isAdmin && reqRows[0].user_id !== userId) {
+        return res.status(403).json({ error: 'You can only change the status of your own requests' });
     }
 
     await sql`UPDATE requests SET status = ${status} WHERE id = ${id}`;

@@ -37,8 +37,8 @@ module.exports = async function handler(req, res) {
     await initDb();
 
     const { rows } = await sql`
-        INSERT INTO requests (user_id, type, manufacturer, needed_by, customer_needs, state, customer_name, customer_address)
-        VALUES (${userId}, ${type}, ${manufacturer || null}, ${needed_by || null}, ${customer_needs || null}, ${state || null}, ${customer_name || null}, ${customer_address || null})
+        INSERT INTO requests (user_id, type, manufacturer, needed_by, customer_needs, state, customer_name, customer_address, status)
+        VALUES (${userId}, ${type}, ${manufacturer || null}, ${needed_by || null}, ${customer_needs || null}, ${state || null}, ${customer_name || null}, ${customer_address || null}, 'submitted')
         RETURNING id
     `;
 

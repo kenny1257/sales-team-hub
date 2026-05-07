@@ -669,6 +669,7 @@
                 <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Quote Requests</h3>
                 <div class="team-grid">${quotes.map(r => renderRequestCard(r, false)).join('')}</div>
             `;
+            attachStatusListeners(area);
         } catch { area.innerHTML = ''; }
     }
 
@@ -788,6 +789,7 @@
                 <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Recent Requests</h3>
                 <div class="team-grid">${reqs.map(r => renderRequestCard(r, false)).join('')}</div>
             `;
+            attachStatusListeners(area);
         } catch { area.innerHTML = ''; }
     }
 
@@ -859,13 +861,15 @@
             filesHtml = '<span class="text-muted" style="font-size:0.82rem;">No documents attached</span>';
         }
 
-        // Admin status control
+        // Status + delete control: shown to admins on the team grid, and to owners on their own cards
+        const canControl = (showUser && currentUser.role === 'admin') || !showUser;
         let adminStatusHtml = '';
-        if (showUser && currentUser.role === 'admin') {
+        if (canControl) {
             adminStatusHtml = `
                 <div class="admin-status-control" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <label class="admin-status-label">Status:</label>
                     <select class="status-select" data-request-id="${r.id}">
+                        <option value="submitted" ${status === 'submitted' ? 'selected' : ''}>Submitted</option>
                         <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
                         <option value="on_pause" ${status === 'on_pause' ? 'selected' : ''}>On Pause</option>
                         <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
@@ -911,6 +915,7 @@
 
     function getStatusInfo(status) {
         switch (status) {
+            case 'submitted': return { label: 'Submitted', icon: 'fa-paper-plane' };
             case 'completed': return { label: 'Completed', icon: 'fa-circle-check' };
             case 'on_pause': return { label: 'On Pause', icon: 'fa-pause' };
             default: return { label: 'Pending', icon: 'fa-clock' };
@@ -948,6 +953,8 @@
                 try {
                     await api(`/api/request/${requestId}`, 'DELETE');
                     if (card) card.remove();
+                    loadMyQuotes();
+                    loadMyRequests();
                     if (currentUser.role === 'admin') {
                         loadAdminQuotes();
                         loadAdminRequests();

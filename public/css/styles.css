@@ -989,6 +989,11 @@ textarea.form-control { min-height: 90px; }
 .request-pdf-link:hover { background: var(--border); }
 
 /* -- Request status badges -- */
+.status-badge.status-submitted {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
 .status-badge.status-pending {
     background: var(--amber-bg);
     color: var(--amber);
@@ -1108,7 +1113,7 @@ textarea.form-control { min-height: 90px; }
     text-align: center;
     padding: 40px 20px;
 }
-.success-message i {
+.success-message > i {
     font-size: 3rem;
     color: var(--green);
     margin-bottom: 12px;
