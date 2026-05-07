@@ -95,6 +95,28 @@
             document.getElementById('goal-current').textContent = '—';
         }
 
+        // Editable text cards: morning note + weekly goal
+        setupEditableSetting({
+            key: 'morning_note',
+            displayId: 'morning-note-display',
+            inputId: 'morning-note-input',
+            editAreaId: 'morning-note-edit-area',
+            editBtnId: 'morning-note-edit-btn',
+            saveBtnId: 'morning-note-save-btn',
+            cancelBtnId: 'morning-note-cancel-btn',
+            emptyText: 'No note yet today.',
+        });
+        setupEditableSetting({
+            key: 'weekly_goal',
+            displayId: 'weekly-goal-display',
+            inputId: 'weekly-goal-input',
+            editAreaId: 'weekly-goal-edit-area',
+            editBtnId: 'weekly-goal-edit-btn',
+            saveBtnId: 'weekly-goal-save-btn',
+            cancelBtnId: 'weekly-goal-cancel-btn',
+            emptyText: 'No weekly goal set yet.',
+        });
+
         // Admin stats
         if (currentUser.role === 'admin') {
             document.getElementById('home-admin-panel').style.display = 'block';
@@ -111,6 +133,55 @@
                 document.getElementById('stat-not-in').textContent = Math.max(0, total - checkedIn - checkedOut);
             } catch { /* ignore */ }
         }
+    }
+
+    // Generic editable settings card (admin can edit, everyone reads)
+    const _editableSettingWired = new Set();
+    async function setupEditableSetting(opts) {
+        const display = document.getElementById(opts.displayId);
+        const editArea = document.getElementById(opts.editAreaId);
+        const editBtn = document.getElementById(opts.editBtnId);
+        const saveBtn = document.getElementById(opts.saveBtnId);
+        const cancelBtn = document.getElementById(opts.cancelBtnId);
+        const input = document.getElementById(opts.inputId);
+
+        // Load current value
+        try {
+            const data = await api(`/api/settings/${opts.key}`);
+            display.textContent = data.value && data.value.trim() ? data.value : opts.emptyText;
+            input.value = data.value || '';
+        } catch {
+            display.textContent = 'Could not load.';
+        }
+
+        if (currentUser.role !== 'admin') return;
+        editBtn.style.display = 'inline-flex';
+
+        if (_editableSettingWired.has(opts.key)) return;
+        _editableSettingWired.add(opts.key);
+
+        editBtn.addEventListener('click', () => {
+            display.style.display = 'none';
+            editArea.style.display = 'block';
+            input.focus();
+        });
+        cancelBtn.addEventListener('click', () => {
+            editArea.style.display = 'none';
+            display.style.display = 'block';
+        });
+        saveBtn.addEventListener('click', async () => {
+            const value = input.value.trim();
+            saveBtn.disabled = true;
+            try {
+                await api(`/api/settings/${opts.key}`, 'POST', { value });
+                display.textContent = value || opts.emptyText;
+                editArea.style.display = 'none';
+                display.style.display = 'block';
+            } catch (err) {
+                alert('Failed to save: ' + (err.message || 'Unknown error'));
+            }
+            saveBtn.disabled = false;
+        });
     }
 
     // ================ CHECK-IN / CHECK-OUT ================
@@ -130,8 +201,74 @@
             document.getElementById('admin-team-dashboard').style.display = 'block';
             const picker = document.getElementById('admin-date-picker');
             if (!picker.value) picker.value = todayStr();
-            picker.onchange = () => loadTeamCheckins(picker.value);
+            picker.onchange = () => { loadTeamCheckins(picker.value); loadManageTeam(); };
             loadTeamCheckins(picker.value);
+            loadManageTeam();
+        }
+    }
+
+    async function loadManageTeam() {
+        const list = document.getElementById('manage-team-list');
+        if (!list) return;
+        list.innerHTML = '<p class="text-muted">Loading team...</p>';
+        try {
+            const today = todayStr();
+            const [teamData, checkinData] = await Promise.all([
+                api('/api/admin/team'),
+                api(`/api/admin/checkins?date=${today}`),
+            ]);
+            const checkedInIds = new Set(checkinData.checkins.map(c => c.user_id));
+
+            if (teamData.members.length === 0) {
+                list.innerHTML = '<div class="no-data-message" style="grid-column:1/-1;"><i class="fa-solid fa-users"></i>No team members yet.</div>';
+                return;
+            }
+
+            list.innerHTML = teamData.members.map(m => {
+                const isCheckedIn = checkedInIds.has(m.id);
+                const isSelf = m.id === currentUser.id;
+                const borderColor = isCheckedIn ? '#28a745' : '#d33';
+                const statusLabel = isCheckedIn
+                    ? '<span class="status-badge checked-in"><i class="fa-solid fa-circle-check"></i> Checked In Today</span>'
+                    : '<span class="status-badge" style="background:#fde2e2; color:#a01515;"><i class="fa-solid fa-circle-xmark"></i> Not Checked In Today</span>';
+                const removeBtn = isSelf
+                    ? '<span class="text-muted" style="font-size:0.8rem;">(you)</span>'
+                    : `<button type="button" class="btn remove-member-btn" data-user-id="${m.id}" data-user-name="${esc(m.name)}" style="background:#d33; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;"><i class="fa-solid fa-user-minus"></i> Remove</button>`;
+                return `
+                <div class="member-card" style="border-left:4px solid ${borderColor};">
+                    <div class="member-header">
+                        <img src="${m.picture || ''}" alt="" class="member-avatar">
+                        <div class="member-info">
+                            <div class="member-name">${esc(m.name)}</div>
+                            <div class="member-email">${esc(m.email)}</div>
+                        </div>
+                        ${statusLabel}
+                    </div>
+                    <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+                        ${removeBtn}
+                    </div>
+                </div>`;
+            }).join('');
+
+            list.querySelectorAll('.remove-member-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const button = e.currentTarget;
+                    const targetId = button.dataset.userId;
+                    const name = button.dataset.userName;
+                    if (!confirm(`Permanently remove ${name} from the team? This will delete their check-ins and quote/price-match requests. This cannot be undone.`)) return;
+                    button.disabled = true;
+                    try {
+                        await api(`/api/admin/users/${targetId}`, 'DELETE');
+                        loadManageTeam();
+                        loadTeamCheckins(document.getElementById('admin-date-picker').value);
+                    } catch (err) {
+                        alert('Failed to remove: ' + (err.message || 'Unknown error'));
+                        button.disabled = false;
+                    }
+                });
+            });
+        } catch (err) {
+            list.innerHTML = '<p class="text-muted">Could not load team.</p>';
         }
     }
 

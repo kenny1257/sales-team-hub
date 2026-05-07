@@ -57,7 +57,7 @@
             </div>
 
             <div class="home-grid">
-                <!-- Left: Sales Tip -->
+                <!-- Left: Sales Tip + Morning Note -->
                 <div class="home-left">
                     <div class="sales-tip-card">
                         <div class="tip-icon">
@@ -69,9 +69,26 @@
                             <span class="tip-category" id="sales-tip-category"></span>
                         </div>
                     </div>
+
+                    <div class="card" id="morning-note-card" style="margin-top:16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                            <h3 class="card-title" style="margin:0;"><i class="fa-solid fa-sun"></i> Morning Note for the Team</h3>
+                            <button type="button" id="morning-note-edit-btn" class="btn btn-secondary" style="display:none; padding:4px 10px; font-size:0.85rem;">
+                                <i class="fa-solid fa-pen"></i> Edit
+                            </button>
+                        </div>
+                        <div id="morning-note-display" class="summary-value" style="white-space:pre-wrap;">Loading...</div>
+                        <div id="morning-note-edit-area" style="display:none;">
+                            <textarea id="morning-note-input" class="form-control" rows="4" placeholder="Write a note for the team..."></textarea>
+                            <div style="margin-top:8px; display:flex; gap:8px;">
+                                <button type="button" id="morning-note-save-btn" class="btn btn-primary" style="padding:6px 14px;"><i class="fa-solid fa-check"></i> Save</button>
+                                <button type="button" id="morning-note-cancel-btn" class="btn btn-secondary" style="padding:6px 14px;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Right: Sales Goal -->
+                <!-- Right: Sales Goal + Weekly Goal -->
                 <div class="home-right">
                     <div class="goal-card">
                         <div class="goal-header">
@@ -94,6 +111,23 @@
                         <div class="goal-percentage">
                             <span class="goal-pct-number" id="goal-pct">0%</span>
                             <span class="goal-pct-label">of monthly goal</span>
+                        </div>
+                    </div>
+
+                    <div class="card" id="weekly-goal-card" style="margin-top:16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                            <h3 class="card-title" style="margin:0;"><i class="fa-solid fa-flag-checkered"></i> Weekly Goal</h3>
+                            <button type="button" id="weekly-goal-edit-btn" class="btn btn-secondary" style="display:none; padding:4px 10px; font-size:0.85rem;">
+                                <i class="fa-solid fa-pen"></i> Edit
+                            </button>
+                        </div>
+                        <div id="weekly-goal-display" class="summary-value" style="white-space:pre-wrap;">Loading...</div>
+                        <div id="weekly-goal-edit-area" style="display:none;">
+                            <textarea id="weekly-goal-input" class="form-control" rows="4" placeholder="What is the team's goal for this week?"></textarea>
+                            <div style="margin-top:8px; display:flex; gap:8px;">
+                                <button type="button" id="weekly-goal-save-btn" class="btn btn-primary" style="padding:6px 14px;"><i class="fa-solid fa-check"></i> Save</button>
+                                <button type="button" id="weekly-goal-cancel-btn" class="btn btn-secondary" style="padding:6px 14px;">Cancel</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -137,6 +171,10 @@
                 <div id="team-checkins-grid" class="team-grid">
                     <!-- Dynamically filled -->
                 </div>
+
+                <h2 class="section-title" style="margin-top:32px;"><i class="fa-solid fa-user-gear"></i> Manage Team</h2>
+                <p class="text-muted" style="font-size:0.9rem; margin-bottom:12px;">Members not checked in <strong>today</strong> are highlighted. Remove anyone who is no longer on the team — this clears their data and updates the team count.</p>
+                <div id="manage-team-list" class="team-grid"></div>
             </div>
         </section>
 
