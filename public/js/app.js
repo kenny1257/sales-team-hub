@@ -145,12 +145,19 @@
                     <h3 class="card-title"><i class="fa-solid fa-arrow-right-to-bracket"></i> Check In</h3>
                     <form id="checkin-form">
                         <div class="form-group">
-                            <label class="form-label">What are you working on today?</label>
-                            <textarea class="form-control" id="ci-working" placeholder="Describe your tasks for today..." required></textarea>
+                            <label class="form-label">What is your energy starting the day? (1 = Drained, 10 = Energized)</label>
+                            <select class="form-control" id="ci-energy" required>
+                                <option value="" disabled selected>Select 1-10...</option>
+                                ${energyOptions()}
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">What is your goal for today?</label>
-                            <textarea class="form-control" id="ci-goal" placeholder="What do you want to accomplish?" required></textarea>
+                            <label class="form-label">What or who is your top priority today?</label>
+                            <textarea class="form-control" id="ci-goal" placeholder="The one thing or person you must move forward today..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">How can I help you, or what can I do for you to accomplish what you need today?</label>
+                            <textarea class="form-control" id="ci-help" placeholder="Be specific — resources, intros, decisions, anything blocking you..." required></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Check In</button>
                     </form>
@@ -172,26 +179,39 @@
                         <div class="summary-label">Checked in at</div>
                         <div class="summary-time">${formatTime(checkin.check_in_time)}</div>
                     </div>
+                    ${checkin.energy_start ? `
                     <div class="summary-section">
-                        <div class="summary-label">Working on</div>
-                        <div class="summary-value">${esc(checkin.working_on)}</div>
-                    </div>
+                        <div class="summary-label">Starting Energy</div>
+                        <div class="summary-value">${checkin.energy_start} / 10</div>
+                    </div>` : ''}
                     <div class="summary-section">
-                        <div class="summary-label">Goal</div>
+                        <div class="summary-label">Top Priority</div>
                         <div class="summary-value">${esc(checkin.goal)}</div>
                     </div>
+                    ${checkin.help_needed ? `
+                    <div class="summary-section">
+                        <div class="summary-label">Help Needed</div>
+                        <div class="summary-value">${esc(checkin.help_needed)}</div>
+                    </div>` : ''}
                 </div>
 
                 <div class="card">
                     <h3 class="card-title"><i class="fa-solid fa-arrow-right-from-bracket"></i> Check Out</h3>
                     <form id="checkout-form">
                         <div class="form-group">
-                            <label class="form-label">What did you get done today?</label>
-                            <textarea class="form-control" id="co-accomplished" placeholder="Summarize what you accomplished..." required></textarea>
+                            <label class="form-label">What did we accomplish today, did we learn anything new?</label>
+                            <textarea class="form-control" id="co-accomplished" placeholder="Wins, progress, lessons learned..." required></textarea>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">What went well or poorly?</label>
-                            <textarea class="form-control" id="co-reflection" placeholder="Reflect on your day..." required></textarea>
+                            <label class="form-label">Is there any advice for the team or yourself that you learned today or in general?</label>
+                            <textarea class="form-control" id="co-advice" placeholder="Share what would help the team or your future self..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Energy ending the day (1 = Drained, 10 = Energized)</label>
+                            <select class="form-control" id="co-energy" required>
+                                <option value="" disabled selected>Select 1-10...</option>
+                                ${energyOptions()}
+                            </select>
                         </div>
                         <button type="submit" class="btn btn-dark"><i class="fa-solid fa-check"></i> Check Out</button>
                     </form>
@@ -213,14 +233,20 @@
                     <div class="summary-label">Checked in at</div>
                     <div class="summary-time">${formatTime(checkin.check_in_time)}</div>
                 </div>
+                ${checkin.energy_start ? `
                 <div class="summary-section">
-                    <div class="summary-label">Working on</div>
-                    <div class="summary-value">${esc(checkin.working_on)}</div>
-                </div>
+                    <div class="summary-label">Starting Energy</div>
+                    <div class="summary-value">${checkin.energy_start} / 10</div>
+                </div>` : ''}
                 <div class="summary-section">
-                    <div class="summary-label">Goal</div>
+                    <div class="summary-label">Top Priority</div>
                     <div class="summary-value">${esc(checkin.goal)}</div>
                 </div>
+                ${checkin.help_needed ? `
+                <div class="summary-section">
+                    <div class="summary-label">Help Needed</div>
+                    <div class="summary-value">${esc(checkin.help_needed)}</div>
+                </div>` : ''}
 
                 <hr style="border:none; border-top:1px solid #e0e0e0; margin:20px 0;">
 
@@ -229,15 +255,27 @@
                     <div class="summary-time">${formatTime(checkin.check_out_time)}</div>
                 </div>
                 <div class="summary-section">
-                    <div class="summary-label">Accomplished</div>
+                    <div class="summary-label">Accomplished / Learned</div>
                     <div class="summary-value">${esc(checkin.accomplished)}</div>
                 </div>
+                ${checkin.team_advice ? `
                 <div class="summary-section">
-                    <div class="summary-label">Reflection</div>
-                    <div class="summary-value">${esc(checkin.went_well_poorly)}</div>
-                </div>
+                    <div class="summary-label">Advice for the Team</div>
+                    <div class="summary-value">${esc(checkin.team_advice)}</div>
+                </div>` : ''}
+                ${checkin.energy_end ? `
+                <div class="summary-section">
+                    <div class="summary-label">Ending Energy</div>
+                    <div class="summary-value">${checkin.energy_end} / 10</div>
+                </div>` : ''}
             </div>
         `;
+    }
+
+    function energyOptions() {
+        let html = '';
+        for (let i = 1; i <= 10; i++) html += `<option value="${i}">${i}</option>`;
+        return html;
     }
 
     async function handleCheckin(e) {
@@ -248,8 +286,9 @@
 
         try {
             const data = await api('/api/checkin', 'POST', {
-                working_on: document.getElementById('ci-working').value.trim(),
+                energy_start: document.getElementById('ci-energy').value,
                 goal: document.getElementById('ci-goal').value.trim(),
+                help_needed: document.getElementById('ci-help').value.trim(),
             });
             renderCheckinState(data.checkin);
         } catch (err) {
@@ -268,7 +307,8 @@
         try {
             const data = await api('/api/checkout', 'POST', {
                 accomplished: document.getElementById('co-accomplished').value.trim(),
-                went_well_poorly: document.getElementById('co-reflection').value.trim(),
+                team_advice: document.getElementById('co-advice').value.trim(),
+                energy_end: document.getElementById('co-energy').value,
             });
             renderCheckinState(data.checkin);
         } catch (err) {
@@ -317,16 +357,18 @@
             </div>
             <div class="member-details">
                 <div><div class="summary-label">Checked In</div><div class="summary-time">${formatTime(c.check_in_time)}</div></div>
-                <div><div class="summary-label">Working On</div><div class="summary-value">${esc(c.working_on)}</div></div>
-                <div><div class="summary-label">Goal</div><div class="summary-value">${esc(c.goal)}</div></div>`;
+                ${c.energy_start ? `<div><div class="summary-label">Starting Energy</div><div class="summary-value">${c.energy_start} / 10</div></div>` : ''}
+                <div><div class="summary-label">Top Priority</div><div class="summary-value">${esc(c.goal)}</div></div>
+                ${c.help_needed ? `<div><div class="summary-label">Help Needed</div><div class="summary-value">${esc(c.help_needed)}</div></div>` : ''}`;
 
         if (isComplete) {
             html += `
                 <div style="border-top:1px solid #e0e0e0; padding-top:10px; margin-top:4px;">
                     <div class="summary-label">Checked Out</div><div class="summary-time">${formatTime(c.check_out_time)}</div>
                 </div>
-                <div><div class="summary-label">Accomplished</div><div class="summary-value">${esc(c.accomplished)}</div></div>
-                <div><div class="summary-label">Reflection</div><div class="summary-value">${esc(c.went_well_poorly)}</div></div>`;
+                <div><div class="summary-label">Accomplished / Learned</div><div class="summary-value">${esc(c.accomplished)}</div></div>
+                ${c.team_advice ? `<div><div class="summary-label">Advice for the Team</div><div class="summary-value">${esc(c.team_advice)}</div></div>` : ''}
+                ${c.energy_end ? `<div><div class="summary-label">Ending Energy</div><div class="summary-value">${c.energy_end} / 10</div></div>` : ''}`;
         }
 
         html += `</div></div>`;
